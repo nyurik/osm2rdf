@@ -13,7 +13,7 @@ use path_absolutize::Absolutize;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::Mutex;
@@ -264,11 +264,11 @@ fn create_cache(filename: PathBuf) -> anyhow::Result<DenseFileCache> {
 }
 
 fn start_writer_thread(
-    output_dir: &PathBuf,
+    output_dir: &Path,
     max_file_size: usize,
     receiver: Receiver<Statement>,
 ) -> JoinHandle<()> {
-    let output_dir = output_dir.clone();
+    let output_dir = output_dir.to_path_buf();
     let file_index = AtomicU32::new(0);
     let oldest_ts = AtomicI64::new(0);
 
@@ -310,7 +310,7 @@ fn start_writer_thread(
         .unwrap()
 }
 
-fn new_gz_file(output_dir: &PathBuf, file_index: &AtomicU32) -> GzEncoder<File> {
+fn new_gz_file(output_dir: &Path, file_index: &AtomicU32) -> GzEncoder<File> {
     let index = file_index.fetch_add(1, Ordering::Relaxed);
     let file = output_dir.join(format!("osm-{:06}.ttl.gz", index));
     println!("Creating {:?}", file.absolutize().unwrap());
