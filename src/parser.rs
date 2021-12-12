@@ -48,11 +48,8 @@ impl<'a> Parser<'a> {
     }
 
     fn on_node(&mut self, node: &Node) -> Statement {
-        self.cache.set_value_i32(
-            node.id() as usize,
-            node.decimicro_lat(),
-            node.decimicro_lon(),
-        );
+        self.cache
+            .set_lat_lon(node.id() as usize, node.lat(), node.lon());
         let info = &node.info();
         let mut statement = self.process_node(
             node.info().deleted(),
@@ -73,11 +70,8 @@ impl<'a> Parser<'a> {
     }
 
     fn on_dense_node(&mut self, node: &DenseNode) -> Statement {
-        self.cache.set_value_i32(
-            node.id() as usize,
-            node.decimicro_lat(),
-            node.decimicro_lon(),
-        );
+        self.cache
+            .set_lat_lon(node.id() as usize, node.lat(), node.lon());
         let info = node.info().unwrap();
         let mut statement = self.process_node(
             info.deleted(),
@@ -230,7 +224,7 @@ impl<'a> Parser<'a> {
         let refs: Vec<[f64; 2]> = way
             .refs()
             .map(|id| {
-                let (lat, lng) = self.cache.get_lat_long(id as usize);
+                let (lat, lng) = self.cache.get_lat_lon(id as usize);
                 [lat as f64, lng as f64]
             })
             .collect();
