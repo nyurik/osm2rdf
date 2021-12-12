@@ -15,10 +15,12 @@ env:
   TOOLCHAIN_PROFILE: default
 
 jobs:
-  lints:
+  ci:
     name: Run cargo fmt and cargo clippy
     runs-on: ubuntu-latest
     steps:
+      - name: Install libgeos-dev
+        run: sudo apt-get install -y libgeos-dev
       - name: Checkout sources
         uses: actions/checkout@v2
       - name: Install toolchain
