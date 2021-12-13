@@ -1,5 +1,5 @@
 [package]
-name = "osm2rdf-rust"
+name = "osm2rdf"
 version = "0.1.0"
 authors = ["Yuri Astrakhan <YuriAstrakhan@gmail.com>"]
 edition = "2021"

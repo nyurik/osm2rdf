@@ -47,3 +47,19 @@ jobs:
           RUST_TEST_THREADS: 1
         with:
           command: test
+      - name: Build release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+      - name: Gzip release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        run: |
+          gzip -c -9 target/release/osm2rdf > osm2rdf.gz
+      - name: Publish release
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            osm2rdf.gz

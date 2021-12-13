@@ -364,7 +364,7 @@ pub fn parse(opt: Opt) -> Result<(), Error> {
                 });
 
             writer_thread.join().unwrap();
-            println!("Summary statistics:\n{:#?}", stats.lock().unwrap());
+            println!("{:#?}", stats.lock().unwrap());
             Ok(())
         } // _ => panic!("Expecting Parse")
     }
