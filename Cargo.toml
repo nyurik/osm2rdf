@@ -1,6 +1,6 @@
 [package]
 name = "osm2rdf"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Yuri Astrakhan <YuriAstrakhan@gmail.com>"]
 edition = "2021"
 
@@ -15,7 +15,7 @@ flate2 = "1.0.22"
 geos = "8.0.3"
 json = "0.12.4"
 memmap2 = "0.5.0"
-osmnodecache = "0.4.0"
+osmnodecache = "0.6.0"
 osmpbf = "0.2.6"
 path-absolutize = "3.0.11"
 percent-encoding = "2.1.0"

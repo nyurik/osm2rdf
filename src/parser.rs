@@ -1,23 +1,24 @@
-use geos::{CoordSeq, Geom, Geometry};
-use osmnodecache::{Cache, DenseFileCache, DenseFileCacheOpts};
-use osmpbf::{BlobDecode, BlobReader, DenseNode, Info, Node, RelMemberType, Relation, Way};
+use std::fs::File;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Mutex;
+use std::thread::{Builder, JoinHandle};
 
-use crate::utils::{format_ts, Consts, Element, Statement, Stats, StringExt};
-use crate::{Command, Opt};
 use anyhow::Error;
 use byteorder::WriteBytesExt;
 use bytesize::ByteSize;
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use geos::{CoordSeq, Geom, Geometry};
+use osmnodecache::{Cache, CacheStore, DenseFileCache, DenseFileCacheOpts, HashMapCache};
+use osmpbf::{BlobDecode, BlobReader, DenseNode, Info, Node, RelMemberType, Relation, Way};
 use path_absolutize::Absolutize;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use std::fs::File;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
-use std::sync::mpsc::{channel, Receiver};
-use std::sync::Mutex;
-use std::thread::{Builder, JoinHandle};
+
+use crate::utils::{format_ts, Consts, Element, Statement, Stats, StringExt};
+use crate::{Command, Opt};
 
 struct Parser<'a> {
     parent_stats: &'a Mutex<Stats>,
@@ -37,13 +38,13 @@ impl<'a> Parser<'a> {
     fn new(
         parent_stats: &'a Mutex<Stats>,
         consts: &Consts,
-        dfc: &'a mut DenseFileCache,
+        cache: Box<dyn 'a + Cache>,
     ) -> Parser<'a> {
         Parser {
             parent_stats,
             stats: Stats::default(),
             consts: consts.clone(),
-            cache: Box::new(dfc.get_accessor()),
+            cache,
         }
     }
 
@@ -59,12 +60,12 @@ impl<'a> Parser<'a> {
             node.lon(),
         );
         if let Statement::Create {
-            val: ref mut value,
+            ref mut val,
             ref mut ts,
             ..
         } = statement
         {
-            *ts = Self::push_info(value, info);
+            *ts = Self::push_info(val, info);
         }
         statement
     }
@@ -250,7 +251,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn create_cache(filename: PathBuf) -> anyhow::Result<DenseFileCache> {
+fn create_flat_cache(filename: PathBuf) -> anyhow::Result<DenseFileCache> {
     DenseFileCacheOpts::new(filename)
         .page_size(10 * 1024 * 1024 * 1024)
         .on_size_change(Some(|old_size, new_size| {
@@ -332,40 +333,60 @@ pub fn parse(opt: Opt) -> Result<(), Error> {
                     .build_global()
                     .unwrap();
             }
-            let reader = BlobReader::from_path(input_file)?;
-            let file_cache = create_cache(opt.cache)?;
-            let stats = Mutex::new(Stats::default());
-            let consts = &Consts::new();
             let (sender, receiver) = channel();
             let writer_thread =
                 start_writer_thread(&output_dir, max_file_size * 1024 * 1024, receiver);
 
-            reader
-                .par_bridge()
-                .for_each_with((file_cache, sender), |(dfc, writer), blob| {
-                    let mut parser = Parser::new(&stats, consts, dfc);
-                    if let BlobDecode::OsmData(block) = blob.unwrap().decode().unwrap() {
-                        for group in block.groups() {
-                            // FIXME: possible concurrency bug: a non-node element may need coords of a node that hasn't been processed yet
-                            for node in group.nodes() {
-                                writer.send(parser.on_node(&node)).unwrap();
-                            }
-                            for node in group.dense_nodes() {
-                                writer.send(parser.on_dense_node(&node)).unwrap();
-                            }
-                            for way in group.ways() {
-                                writer.send(parser.on_way(&way)).unwrap();
-                            }
-                            for rel in group.relations() {
-                                writer.send(parser.on_relation(&rel)).unwrap();
-                            }
-                        }
-                    };
-                });
+            let reader = BlobReader::from_path(input_file)?;
+            if let Some(filename) = &opt.planet_cache {
+                let cache = create_flat_cache(filename.clone())?;
+                parse_with_cache(cache, sender, reader);
+            } else {
+                let filename = &opt.small_cache.unwrap();
+                let cache = if filename.exists() {
+                    HashMapCache::from_bin(filename)?
+                } else {
+                    HashMapCache::new()
+                };
+                parse_with_cache(cache.clone(), sender, reader);
+                cache.save_as_bin(filename)?;
+            }
 
             writer_thread.join().unwrap();
-            println!("{:#?}", stats.lock().unwrap());
             Ok(())
         } // _ => panic!("Expecting Parse")
     }
+}
+
+fn parse_with_cache<R: Read + Send, C: CacheStore + Clone + Send>(
+    cache: C,
+    sender: Sender<Statement>,
+    reader: BlobReader<R>,
+) {
+    let consts = &Consts::new();
+    let stats = Mutex::new(Stats::default());
+    reader
+        .par_bridge()
+        .for_each_with((cache, sender), |(dfc, writer), blob| {
+            let cache = dfc.get_accessor();
+            let mut parser = Parser::new(&stats, consts, cache);
+            if let BlobDecode::OsmData(block) = blob.unwrap().decode().unwrap() {
+                for group in block.groups() {
+                    // FIXME: possible concurrency bug: a non-node element may need coords of a node that hasn't been processed yet
+                    for node in group.nodes() {
+                        writer.send(parser.on_node(&node)).unwrap();
+                    }
+                    for node in group.dense_nodes() {
+                        writer.send(parser.on_dense_node(&node)).unwrap();
+                    }
+                    for way in group.ways() {
+                        writer.send(parser.on_way(&way)).unwrap();
+                    }
+                    for rel in group.relations() {
+                        writer.send(parser.on_relation(&rel)).unwrap();
+                    }
+                }
+            };
+        });
+    println!("{:#?}", stats.lock().unwrap());
 }

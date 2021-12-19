@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Error;
-
+use structopt::clap::ArgGroup;
 use structopt::StructOpt;
 
 mod parser;
@@ -10,7 +10,8 @@ mod utils;
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "osm2rdf",
-    about = "Imports and updates OSM data in an RDF database."
+    about = "Imports and updates OSM data in an RDF database.",
+    group = ArgGroup::with_name("cache").required(true)
 )]
 pub struct Opt {
     /// Enable verbose output.
@@ -18,9 +19,13 @@ pub struct Opt {
     #[allow(dead_code)]
     verbose: bool,
 
-    /// File to store node cache.
-    #[structopt(short, long)]
-    cache: PathBuf,
+    /// File for planet-size node cache.
+    #[structopt(short, long, group = "cache", value_name = "file")]
+    planet_cache: Option<PathBuf>,
+
+    /// File for node cache for small extracts.
+    #[structopt(short, long, group = "cache", value_name = "file")]
+    small_cache: Option<PathBuf>,
 
     #[structopt(subcommand)]
     cmd: Command,
