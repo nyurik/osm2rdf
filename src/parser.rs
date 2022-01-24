@@ -305,7 +305,7 @@ fn start_writer_thread(
 
             let mut enc = new_gz_file(&output_dir, &file_index);
             let ts = format_ts(oldest_ts.load(Ordering::SeqCst));
-            let statement = format!("osmroot: schema:dateModified {}.\n", ts);
+            let statement = format!("osmroot: schema:dateModified {ts}.\n");
             enc.write_all(statement.as_ref()).unwrap();
         })
         .unwrap()
@@ -313,7 +313,7 @@ fn start_writer_thread(
 
 fn new_gz_file(output_dir: &Path, file_index: &AtomicU32) -> GzEncoder<File> {
     let index = file_index.fetch_add(1, Ordering::Relaxed);
-    let file = output_dir.join(format!("osm-{:06}.ttl.gz", index));
+    let file = output_dir.join(format!("osm-{index:06}.ttl.gz"));
     println!("Creating {:?}", file.absolutize().unwrap());
     GzEncoder::new(File::create(file).unwrap(), Compression::default())
 }
@@ -328,7 +328,7 @@ pub fn parse(opt: Opt) -> Result<(), Error> {
         } => {
             if let Some(v) = workers {
                 rayon::ThreadPoolBuilder::new()
-                    .thread_name(|i| format!("parser #{}", i))
+                    .thread_name(|i| format!("parser #{i}"))
                     .num_threads(v)
                     .build_global()
                     .unwrap();
