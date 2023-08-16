@@ -1,24 +1,34 @@
 [package]
 name = "osm2rdf"
-version = "0.2.0"
+version = "0.3.0"
+description = "A tool to convert OpenStreetMap database dump into RDF TTL files for injesting into an RDF database"
 authors = ["Yuri Astrakhan <YuriAstrakhan@gmail.com>"]
+repository = "https://github.com/nyurik/osm2rdf"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT OR Apache-2.0"
+keywords = ["osm", "rdf", "openstreetmap", "ttl"]
+categories = ["database", "science::geo "]
+rust-version = "1.71.0"
 
 [dependencies]
-anyhow = "1.0.51"
-byteorder = "1.4.3"
-bytesize = "1.1.0"
-chrono = "0.4.19"
-flate2 = "1.0.22"
-geos = "8.0.3"
-json = "0.12.4"
-memmap2 = "0.5.0"
-osmnodecache = "0.6.0"
-osmpbf = "0.2.6"
-path-absolutize = "3.0.11"
-percent-encoding = "2.1.0"
-rayon = "1.5.1"
-regex = "1.5.4"
-structopt = "0.3.25"
+anyhow = "1"
+byteorder = "1"
+bytesize = "1"
+chrono = "0.4"
+clap = { version = "4", features = ["derive"] }
+flate2 = "1"
+geos = "8"
+json = "0.12"
+memmap2 = "0.7"
+osmnodecache = "0.8"
+osmpbf = "0.3"
+path-absolutize = "3"
+percent-encoding = "2"
+rayon = "1"
+regex = "1"
+
+[dev-dependencies]
+cargo-husky = { version = "1", features = ["user-hooks"], default-features = false }
+osmpbf = "0.3"
+rand = "0.8"
+rayon = "1"

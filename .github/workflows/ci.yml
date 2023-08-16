@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install libgeos-dev
+        run: sudo apt-get install -y libgeos-dev
+      - name: Checkout
+        uses: actions/checkout@v3
+      - run: source .cargo-husky/hooks/pre-push
+      - name: Build release
+        if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
+        run: cargo build --release
+      - name: Gzip release
+        if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          gzip -c -9 target/release/osm2rdf > osm2rdf.gz
+      - name: Publish release
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: |
+            osm2rdf.gz

@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# See https://github.com/rhysd/cargo-husky#readme
+#
+
+echo "----------------------------------------------------------------------------------------"
+echo "These tests run automatically before the    git push"
+echo "If you want to push your changes without testing them first, use    git push --no-verify"
+echo "----------------------------------------------------------------------------------------"
+
+set -ex
+
+rustc --version
+cargo --version
+cargo fmt --all -- --check
+cargo clippy -- -D warnings
+cargo build
+cargo test --workspace --all-targets --bins --tests --lib --benches
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps

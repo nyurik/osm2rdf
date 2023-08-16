@@ -134,7 +134,8 @@ impl StringExt for String {
 pub fn format_ts(milli_timestamp: i64) -> String {
     format!(
         "{:?}",
-        Utc.timestamp(milli_timestamp / 1000, (milli_timestamp % 1000) as u32)
+        Utc.timestamp_opt(milli_timestamp / 1000, (milli_timestamp % 1000) as u32)
+            .unwrap()
     )
 }
 

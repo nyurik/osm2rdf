@@ -1,99 +1,96 @@
 use std::path::PathBuf;
 
-use anyhow::Error;
-use structopt::clap::ArgGroup;
-use structopt::StructOpt;
+use anyhow::bail;
+use clap::{Parser, Subcommand};
 
 mod parser;
 mod utils;
 
-#[derive(Debug, StructOpt)]
-#[structopt(
-    name = "osm2rdf",
-    about = "Imports and updates OSM data in an RDF database.",
-    group = ArgGroup::with_name("cache").required(true)
-)]
-pub struct Opt {
+// group = ArgGroup::with_name("cache").required(true)
+// about = "Imports and updates OSM data in an RDF database.",
+
+#[derive(Parser, Debug)]
+#[command(about, version)]
+pub struct Args {
     /// Enable verbose output.
-    #[structopt(short, long)]
+    #[arg(short, long)]
     #[allow(dead_code)]
     verbose: bool,
 
     /// File for planet-size node cache.
-    #[structopt(short, long, group = "cache", value_name = "file")]
+    #[arg(short, long, group = "cache", value_name = "file")]
     planet_cache: Option<PathBuf>,
 
     /// File for node cache for small extracts.
-    #[structopt(short, long, group = "cache", value_name = "file")]
+    #[arg(short, long, group = "cache", value_name = "file")]
     small_cache: Option<PathBuf>,
 
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     cmd: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Subcommand, Debug)]
 enum Command {
     /// Parses a PBF file into multiple .ttl.gz (Turtle files)
     Parse {
         /// Approximate maximum uncompressed file size, in MB, per output file.
-        #[structopt(short, long, default_value = "100")]
+        #[arg(short, long, default_value = "100")]
         max_file_size: usize,
-        /// Number of worker threads to run.
-        #[structopt(short, long)]
+        /// Number of worker threads to run. Defaults to number of logical CPUs.
+        #[arg(short, long)]
         workers: Option<usize>,
         /// OSM input PBF file
         input_file: PathBuf,
         /// Output directory
-        #[structopt(parse(try_from_str = parse_outdir))]
+        #[arg(value_parser = parse_outdir)]
         output_dir: PathBuf,
     },
     // /// Download OSM incremental update files and store them as either TTL files or the RDF database.
     // Update {
     //     /// Start updating from this sequence ID. By default, gets it from RDF server.
-    //     #[structopt(long)]
+    //     #[arg(long)]
     //     seqid: Option<i64>,
     //     /// Source of the minute data.
-    //     #[structopt(
+    //     #[arg(
     //         long,
     //         default_value = "https://planet.openstreetmap.org/replication/minute"
     //     )]
     //     updater_url: String,
     //     /// Maximum size in kB for changes to download at once
-    //     #[structopt(long, default_value = "10240")]
+    //     #[arg(long, default_value = "10240")]
     //     max_download: usize,
     //     /// Do not modify RDF database.
-    //     #[structopt(short, long)]
+    //     #[arg(short, long)]
     //     dry_run: bool,
     //     /// Approximate maximum uncompressed file size, in MB, per output file. Only used if destination is a directory.
-    //     #[structopt(short, long, default_value = "100")]
+    //     #[arg(short, long, default_value = "100")]
     //     max_file_size: usize,
     //     /// Either a URL of the RDF database, or a directory with TTL files created with the "parse" command.
-    //     #[structopt(default_value = "http://localhost:9999/bigdata/namespace/wdq/sparql")]
+    //     #[arg(default_value = "http://localhost:9999/bigdata/namespace/wdq/sparql")]
     //     destination: String,
     // },
 }
 
 // enum Foo {
 //     /// Host URL to upload data. Default: %(default)s
-//     #[structopt(
+//     #[arg(
 //     long,
 //     default_value = "http://localhost:9999/bigdata/namespace/wdq/sparql"
 //     )]
 //     host: String,
 // }
 
-fn parse_outdir(path: &str) -> anyhow::Result<PathBuf> {
-    let path = PathBuf::from(path);
-    if path.is_dir() {
-        Ok(path)
-    } else {
-        Err(Error::msg("Output directory does not exist"))
+fn parse_outdir(path_str: &str) -> anyhow::Result<PathBuf> {
+    let path = PathBuf::from(path_str);
+    if !path.is_dir() {
+        bail!("Output directory `{path_str}` does not exist")
     }
+    Ok(path)
 }
 
 fn main() -> anyhow::Result<()> {
-    let opt: Opt = Opt::from_args();
-    match opt.cmd {
-        Command::Parse { .. } => parser::parse(opt),
+    let args = Args::parse();
+    match args.cmd {
+        Command::Parse { .. } => parser::parse(args),
     }
 }

@@ -6,8 +6,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
 use std::thread::{Builder, JoinHandle};
 
-use anyhow::Error;
-use byteorder::WriteBytesExt;
+use byteorder::WriteBytesExt as _;
 use bytesize::ByteSize;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -18,7 +17,7 @@ use path_absolutize::Absolutize;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 
 use crate::utils::{format_ts, Consts, Element, Statement, Stats, StringExt};
-use crate::{Command, Opt};
+use crate::{Args, Command};
 
 struct Parser<'a> {
     parent_stats: &'a Mutex<Stats>,
@@ -226,7 +225,7 @@ impl<'a> Parser<'a> {
             .refs()
             .map(|id| {
                 let (lat, lng) = self.cache.get_lat_lon(id as usize);
-                [lat as f64, lng as f64]
+                [lat, lng]
             })
             .collect();
 
@@ -252,7 +251,7 @@ impl<'a> Parser<'a> {
 }
 
 fn create_flat_cache(filename: PathBuf) -> anyhow::Result<DenseFileCache> {
-    DenseFileCacheOpts::new(filename)
+    Ok(DenseFileCacheOpts::new(filename)
         .page_size(10 * 1024 * 1024 * 1024)
         .on_size_change(Some(|old_size, new_size| {
             println!(
@@ -261,7 +260,7 @@ fn create_flat_cache(filename: PathBuf) -> anyhow::Result<DenseFileCache> {
                 ByteSize(new_size as u64)
             )
         }))
-        .open()
+        .open()?)
 }
 
 fn start_writer_thread(
@@ -318,7 +317,7 @@ fn new_gz_file(output_dir: &Path, file_index: &AtomicU32) -> GzEncoder<File> {
     GzEncoder::new(File::create(file).unwrap(), Compression::default())
 }
 
-pub fn parse(opt: Opt) -> Result<(), Error> {
+pub fn parse(opt: Args) -> anyhow::Result<()> {
     match opt.cmd {
         Command::Parse {
             workers,
