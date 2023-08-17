@@ -6,23 +6,36 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
 use std::thread::{Builder, JoinHandle};
 
-use byteorder::WriteBytesExt as _;
 use bytesize::ByteSize;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use geos::{CoordSeq, Geom, Geometry};
 use osmnodecache::{Cache, CacheStore, DenseFileCache, DenseFileCacheOpts, HashMapCache};
-use osmpbf::{BlobDecode, BlobReader, DenseNode, Info, Node, RelMemberType, Relation, Way};
+use osmpbf::{
+    BlobDecode, BlobReader, DenseNode, Info, Node, PrimitiveBlock, RelMemberType, Relation, Way,
+};
 use path_absolutize::Absolutize;
 use rayon::iter::{ParallelBridge, ParallelIterator};
+use regex::Regex;
 
-use crate::utils::{format_ts, Consts, Element, Statement, Stats, StringExt};
+use crate::str_builder::StringBuf;
+use crate::utils::{to_utc, Element, Statement, Stats};
 use crate::{Args, Command};
+use lazy_static::lazy_static;
 
-struct Parser<'a> {
+lazy_static! {
+    /// Total length of the maximum "valid" local name is 60 (58 + first + last char)
+    /// Local name may contain letters, numbers anywhere, and -:_ symbols anywhere except first and last position
+    pub static ref RE_SIMPLE_LOCAL_NAME: Regex = Regex::new(r"^[0-9a-zA-Z_]([-:0-9a-zA-Z_]{0,58}[0-9a-zA-Z_])?$").unwrap();
+    pub static ref RE_WIKIDATA_KEY: Regex = Regex::new(r"(.:)?wikidata$").unwrap();
+    pub static ref RE_WIKIDATA_VALUE: Regex = Regex::new(r"^Q[1-9][0-9]{0,18}$").unwrap();
+    pub static ref RE_WIKIDATA_MULTI_VALUE: Regex = Regex::new(r"^Q[1-9][0-9]{0,18}(;Q[1-9][0-9]{0,18})+$").unwrap();
+    pub static ref RE_WIKIPEDIA_VALUE: Regex = Regex::new(r"^([-a-z]+):(.+)$").unwrap();
+}
+
+pub struct Parser<'a> {
     parent_stats: &'a Mutex<Stats>,
     stats: Stats,
-    consts: Consts,
     cache: Box<dyn Cache + 'a>,
 }
 
@@ -34,25 +47,18 @@ impl<'a> Drop for Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    fn new(
-        parent_stats: &'a Mutex<Stats>,
-        consts: &Consts,
-        cache: Box<dyn 'a + Cache>,
-    ) -> Parser<'a> {
+    pub fn new(parent_stats: &'a Mutex<Stats>, cache: Box<dyn 'a + Cache>) -> Parser<'a> {
         Parser {
             parent_stats,
             stats: Stats::default(),
-            consts: consts.clone(),
             cache,
         }
     }
 
     fn on_node(&mut self, node: &Node) -> Statement {
-        self.cache
-            .set_lat_lon(node.id() as usize, node.lat(), node.lon());
-        let info = &node.info();
+        let info = node.info();
         let mut statement = self.process_node(
-            node.info().deleted(),
+            info.deleted(),
             node.id(),
             node.tags(),
             node.lat(),
@@ -64,14 +70,12 @@ impl<'a> Parser<'a> {
             ..
         } = statement
         {
-            *ts = Self::push_info(val, info);
+            *ts = Self::push_info(val, &info);
         }
         statement
     }
 
     fn on_dense_node(&mut self, node: &DenseNode) -> Statement {
-        self.cache
-            .set_lat_lon(node.id() as usize, node.lat(), node.lon());
         let info = node.info().unwrap();
         let mut statement = self.process_node(
             info.deleted(),
@@ -109,7 +113,8 @@ impl<'a> Parser<'a> {
                 id,
             }
         } else {
-            let mut value = String::with_capacity(100000);
+            self.cache.set_lat_lon(id as usize, lat, lon);
+            let mut value = StringBuf::new(100000);
             self.push_all_tags(&mut value, tags);
             if value.is_empty() {
                 self.stats.skipped_nodes += 1;
@@ -137,12 +142,12 @@ impl<'a> Parser<'a> {
                 id: way.id(),
             };
         }
-        let mut value = String::with_capacity(100000);
+        let mut value = StringBuf::new(100000);
         self.push_all_tags(&mut value, way.tags());
         Self::push_elem_type(&mut value, Element::Way);
         let ts = Self::push_info(&mut value, &info);
         if let Err(err) = self.parse_way_geometry(&mut value, way) {
-            value.push_tag("osmm:loc:error", &err.to_string(), &self.consts)
+            value.push_tag("osmm:loc:error", &err.to_string())
         }
 
         self.stats.added_ways += 1;
@@ -163,7 +168,7 @@ impl<'a> Parser<'a> {
                 id: rel.id(),
             };
         }
-        let mut value = String::with_capacity(100000);
+        let mut value = StringBuf::new(100000);
         self.push_all_tags(&mut value, rel.tags());
         Self::push_elem_type(&mut value, Element::Relation);
         let ts = Self::push_info(&mut value, &info);
@@ -198,7 +203,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn push_info(value: &mut String, info: &Info) -> i64 {
+    fn push_info(value: &mut StringBuf, info: &Info) -> i64 {
         let ts = info.milli_timestamp().unwrap();
         value.push_metadata(
             info.version().unwrap(),
@@ -209,7 +214,7 @@ impl<'a> Parser<'a> {
         ts
     }
 
-    fn push_elem_type(value: &mut String, element: Element) {
+    fn push_elem_type(value: &mut StringBuf, element: Element) {
         value.push_char_value(
             "osmm:type",
             match element {
@@ -220,7 +225,7 @@ impl<'a> Parser<'a> {
         );
     }
 
-    fn parse_way_geometry(&self, value: &mut String, way: &Way) -> anyhow::Result<()> {
+    fn parse_way_geometry(&self, value: &mut StringBuf, way: &Way) -> anyhow::Result<()> {
         let refs: Vec<[f64; 2]> = way
             .refs()
             .map(|id| {
@@ -239,12 +244,12 @@ impl<'a> Parser<'a> {
 
     fn push_all_tags<'t, TTags: Iterator<Item = (&'t str, &'t str)> + ExactSizeIterator>(
         &mut self,
-        value: &mut String,
+        value: &mut StringBuf,
         tags: TTags,
     ) {
         for (k, v) in tags {
             if k != "created_by" {
-                value.push_tag(k, v, &self.consts);
+                value.push_tag(k, v);
             }
         }
     }
@@ -279,20 +284,10 @@ fn start_writer_thread(
             let mut size = 0_usize;
             while let Ok(v) = receiver.recv() {
                 if let Statement::Create { elem, id, val, ts } = v {
-                    let enc = encoder.get_or_insert_with(|| new_gz_file(&output_dir, &file_index));
-
-                    let prefix = match elem {
-                        Element::Node => "osmnode:",
-                        Element::Way => "osmway:",
-                        Element::Relation => "osmrel:",
-                    };
                     oldest_ts.fetch_max(ts, Ordering::Relaxed);
 
-                    enc.write_all(prefix.as_ref()).unwrap();
-                    enc.write_all(id.to_string().as_ref()).unwrap();
-                    enc.write_u8(b'\n').unwrap();
-                    enc.write_all(val.as_ref()).unwrap();
-                    enc.write_u8(b'\n').unwrap();
+                    let enc = encoder.get_or_insert_with(|| new_gz_file(&output_dir, &file_index));
+                    writeln!(enc, "{elem}:{id}\n{val}").unwrap();
 
                     size += val.len();
                     if size > max_file_size {
@@ -303,9 +298,8 @@ fn start_writer_thread(
             }
 
             let mut enc = new_gz_file(&output_dir, &file_index);
-            let ts = format_ts(oldest_ts.load(Ordering::SeqCst));
-            let statement = format!("osmroot: schema:dateModified {ts}.\n");
-            enc.write_all(statement.as_ref()).unwrap();
+            let ts = to_utc(oldest_ts.load(Ordering::SeqCst));
+            writeln!(enc, "osmroot: schema:dateModified {ts}.").unwrap();
         })
         .unwrap()
 }
@@ -357,35 +351,37 @@ pub fn parse(opt: Args) -> anyhow::Result<()> {
     }
 }
 
-fn parse_with_cache<R: Read + Send, C: CacheStore + Clone + Send>(
+pub fn parse_with_cache<R: Read + Send, C: CacheStore + Clone + Send>(
     cache: C,
     sender: Sender<Statement>,
     reader: BlobReader<R>,
 ) {
-    let consts = &Consts::new();
     let stats = Mutex::new(Stats::default());
     reader
         .par_bridge()
         .for_each_with((cache, sender), |(dfc, writer), blob| {
-            let cache = dfc.get_accessor();
-            let mut parser = Parser::new(&stats, consts, cache);
             if let BlobDecode::OsmData(block) = blob.unwrap().decode().unwrap() {
-                for group in block.groups() {
-                    // FIXME: possible concurrency bug: a non-node element may need coords of a node that hasn't been processed yet
-                    for node in group.nodes() {
-                        writer.send(parser.on_node(&node)).unwrap();
-                    }
-                    for node in group.dense_nodes() {
-                        writer.send(parser.on_dense_node(&node)).unwrap();
-                    }
-                    for way in group.ways() {
-                        writer.send(parser.on_way(&way)).unwrap();
-                    }
-                    for rel in group.relations() {
-                        writer.send(parser.on_relation(&rel)).unwrap();
-                    }
-                }
+                let mut parser = Parser::new(&stats, dfc.get_accessor());
+                parse_block(block, &mut parser, |s| writer.send(s).unwrap());
             };
         });
     println!("{:#?}", stats.lock().unwrap());
+}
+
+pub fn parse_block(block: PrimitiveBlock, parser: &mut Parser, mut writer: impl FnMut(Statement)) {
+    for group in block.groups() {
+        // FIXME: possible concurrency bug: a non-node element may need coords of a node that hasn't been processed yet
+        for node in group.nodes() {
+            writer(parser.on_node(&node));
+        }
+        for node in group.dense_nodes() {
+            writer(parser.on_dense_node(&node));
+        }
+        for way in group.ways() {
+            writer(parser.on_way(&way));
+        }
+        for rel in group.relations() {
+            writer(parser.on_relation(&rel));
+        }
+    }
 }

@@ -1,0 +1,22 @@
+---
+source: tests/parser.rs
+expression: result
+input_file: tests/fixtures/libosmium/examples_t_pub_names_pub-node-gen.osm.pbf
+---
+[
+    Create {
+        elem: Node,
+        id: 167199652,
+        ts: 0,
+        val: indoc! {r#"
+            osmt:amenity "pub";
+            osmt:name "Im Holze";
+            osmm:loc "Point(8.891947700000001 53.052651600000004)"^^geo:wktLiteral;
+            osmm:type "n";
+            osmm:version "3"^^xsd:integer;
+            osmm:user "KartoGrapHiti";
+            osmm:timestamp "2010-12-27 13:15:02 UTC"^^xsd:dateTime;
+            osmm:changeset "6777507"^^xsd:integer.
+        "}#",
+    },
+]

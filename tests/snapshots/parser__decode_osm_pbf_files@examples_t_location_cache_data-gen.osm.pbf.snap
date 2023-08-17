@@ -1,0 +1,11 @@
+---
+source: tests/parser.rs
+expression: result
+input_file: tests/fixtures/libosmium/examples_t_location_cache_data-gen.osm.pbf
+---
+[
+    Skip,
+    Skip,
+    Skip,
+    Skip,
+]

@@ -1,0 +1,103 @@
+---
+source: tests/parser.rs
+expression: result
+input_file: tests/fixtures/libosmium/t_relations_missing_members-gen.osm.pbf
+---
+[
+    Skip,
+    Skip,
+    Skip,
+    Skip,
+    Create {
+        elem: Node,
+        id: 14,
+        ts: 0,
+        val: indoc! {r#"
+            osmt:amenity "bench";
+            osmm:loc "Point(1.4000000000000001 1)"^^geo:wktLiteral;
+            osmm:type "n";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+        "}#",
+    },
+    Create {
+        elem: Way,
+        id: 20,
+        ts: 1388534400000,
+        val: indoc! {r#"
+            osmt:public_transport "platform";
+            osmm:type "w";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+            osmm:isClosed "false"^^xsd:boolean;
+            osmm:loc "Point(0.9999999827705324 1.0999999852385371)"^^geo:wktLiteral;
+        "}#",
+    },
+    Create {
+        elem: Way,
+        id: 21,
+        ts: 1388534400000,
+        val: indoc! {r#"
+            osmt:public_transport "platform";
+            osmm:type "w";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+            osmm:isClosed "false"^^xsd:boolean;
+            osmm:loc "Point(0.9999999827705324 1.299999990174547)"^^geo:wktLiteral;
+        "}#",
+    },
+    Create {
+        elem: Relation,
+        id: 31,
+        ts: 1388534400000,
+        val: indoc! {r#"
+            osmt:type "public_transport";
+            osmt:public_transport "stop_area";
+            osmm:type "r";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+            osmm:has osmway:20;
+            osmway:20 "platform";
+            osmm:has osmway:21;
+            osmway:21 "platform";
+            osmm:has osmnode:14;
+            osmnode:14 "";
+            osmm:has osmrel:30;
+            osmrel:30 "building";
+            osmm:has osmnode:15;
+            osmnode:15 "";
+            osmm:has osmrel:32;
+            osmrel:32 "building";
+            osmm:has osmrel:33;
+            osmrel:33 "building";
+            osmm:has osmway:22;
+            osmway:22 "platform";
+        "}#",
+    },
+    Create {
+        elem: Relation,
+        id: 32,
+        ts: 1388534400000,
+        val: indoc! {r#"
+            osmt:type "multipolygon";
+            osmt:public_transport "platform";
+            osmm:type "r";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+            osmm:has osmway:23;
+            osmway:23 "outer";
+            osmm:has osmway:24;
+            osmway:24 "inner";
+        "}#",
+    },
+]

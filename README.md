@@ -13,6 +13,7 @@ A tool to convert OpenStreetMap database dump into RDF TTL files for injesting i
 * To get a list of available commands, run `just`.
 * To run tests, use `just test`.
 * On `git push`, it will run a few validations, including `cargo fmt`, `cargo clippy`, and `cargo test`.  Use `git push --no-verify` to skip these checks.
+* Install `cargo install cargo-insta` to simplify running tests with [insta](https://insta.rs/docs/quickstart/).  Then run `cargo insta review` to review the changes, and `cargo insta test` to update the reference images.
 
 ## License
 

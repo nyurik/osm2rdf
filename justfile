@@ -8,6 +8,10 @@ clean:
     cargo clean
     rm -f Cargo.lock
 
+# Clean test snapshots
+clean-snapshots:
+    rm -rf tests/snapshots
+
 # Run cargo fmt and cargo clippy
 lint: fmt clippy
 
@@ -26,3 +30,11 @@ docs:
 # Run all tests
 test:
     ./.cargo-husky/hooks/pre-push
+
+# Run all tests, review, and approve them
+bless: clean-snapshots
+    cargo insta test --accept
+
+# Run all tests, review, and approve them
+review:
+    cargo insta test --review

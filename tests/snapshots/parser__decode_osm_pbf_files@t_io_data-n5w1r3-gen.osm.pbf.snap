@@ -1,0 +1,76 @@
+---
+source: tests/parser.rs
+expression: result
+input_file: tests/fixtures/libosmium/t_io_data-n5w1r3-gen.osm.pbf
+---
+[
+    Skip,
+    Skip,
+    Skip,
+    Skip,
+    Skip,
+    Create {
+        elem: Way,
+        id: 20,
+        ts: 1388534400000,
+        val: indoc! {r#"
+            osmt:highway "primary";
+            osmm:type "w";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+            osmm:isClosed "false"^^xsd:boolean;
+            osmm:loc "Point(0.9999999827705324 1.0999999852385371)"^^geo:wktLiteral;
+        "}#",
+    },
+    Create {
+        elem: Relation,
+        id: 30,
+        ts: 1388534400000,
+        val: indoc! {r#"
+            osmt:type "test";
+            osmm:type "r";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+            osmm:has osmnode:10;
+            osmnode:10 "none";
+        "}#",
+    },
+    Create {
+        elem: Relation,
+        id: 31,
+        ts: 1388534400000,
+        val: indoc! {r#"
+            osmt:type "restriction";
+            osmm:type "r";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+            osmm:has osmway:20;
+            osmway:20 "from";
+            osmm:has osmnode:11;
+            osmnode:11 "via";
+            osmm:has osmway:22;
+            osmway:22 "to";
+        "}#",
+    },
+    Create {
+        elem: Relation,
+        id: 32,
+        ts: 1388534400000,
+        val: indoc! {r#"
+            osmt:test "relinrel";
+            osmm:type "r";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+            osmm:has osmrel:30;
+            osmrel:30 "none";
+        "}#",
+    },
+]

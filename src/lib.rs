@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use anyhow::bail;
 use clap::{Parser, Subcommand};
 
-mod parser;
-mod utils;
+pub mod parser;
+pub mod str_builder;
+pub mod utils;
 
 // group = ArgGroup::with_name("cache").required(true)
 // about = "Imports and updates OSM data in an RDF database.",
@@ -15,22 +16,22 @@ pub struct Args {
     /// Enable verbose output.
     #[arg(short, long)]
     #[allow(dead_code)]
-    verbose: bool,
+    pub verbose: bool,
 
     /// File for planet-size node cache.
     #[arg(short, long, group = "cache", value_name = "file")]
-    planet_cache: Option<PathBuf>,
+    pub planet_cache: Option<PathBuf>,
 
     /// File for node cache for small extracts.
     #[arg(short, long, group = "cache", value_name = "file")]
-    small_cache: Option<PathBuf>,
+    pub small_cache: Option<PathBuf>,
 
     #[command(subcommand)]
-    cmd: Command,
+    pub cmd: Command,
 }
 
 #[derive(Subcommand, Debug)]
-enum Command {
+pub enum Command {
     /// Parses a PBF file into multiple .ttl.gz (Turtle files)
     Parse {
         /// Approximate maximum uncompressed file size, in MB, per output file.
@@ -86,11 +87,4 @@ fn parse_outdir(path_str: &str) -> anyhow::Result<PathBuf> {
         bail!("Output directory `{path_str}` does not exist")
     }
     Ok(path)
-}
-
-fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
-    match args.cmd {
-        Command::Parse { .. } => parser::parse(args),
-    }
 }

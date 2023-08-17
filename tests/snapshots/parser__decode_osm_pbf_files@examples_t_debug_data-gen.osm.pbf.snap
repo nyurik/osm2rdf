@@ -1,0 +1,37 @@
+---
+source: tests/parser.rs
+expression: result
+input_file: tests/fixtures/libosmium/examples_t_debug_data-gen.osm.pbf
+---
+[
+    Skip,
+    Skip,
+    Create {
+        elem: Way,
+        id: 10,
+        ts: 946721472000,
+        val: indoc! {r#"
+            osmm:type "w";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2000-01-01 10:11:12 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+            osmm:isClosed "false"^^xsd:boolean;
+            osmm:loc "Point(51.02885679855424 13.724815842567391)"^^geo:wktLiteral;
+        "}#",
+    },
+    Create {
+        elem: Relation,
+        id: 20,
+        ts: 946721472000,
+        val: indoc! {r#"
+            osmm:type "r";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2000-01-01 10:11:12 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+            osmm:has osmway:10;
+            osmway:10 "";
+        "}#",
+    },
+]

@@ -10,6 +10,14 @@ keywords = ["osm", "rdf", "openstreetmap", "ttl"]
 categories = ["database", "science::geo "]
 rust-version = "1.71.0"
 
+[lib]
+name = "osm2rdf"
+
+[[bin]]
+name = "osm2rdf"
+path = "src/bin/main.rs"
+
+
 [dependencies]
 anyhow = "1"
 byteorder = "1"
@@ -19,6 +27,7 @@ clap = { version = "4", features = ["derive"] }
 flate2 = "1"
 geos = "8"
 json = "0.12"
+lazy_static = "1"
 memmap2 = "0.7"
 osmnodecache = "0.8"
 osmpbf = "0.3"
@@ -29,6 +38,11 @@ regex = "1"
 
 [dev-dependencies]
 cargo-husky = { version = "1", features = ["user-hooks"], default-features = false }
+insta = { version = "1", features = ["yaml", "redactions", "glob", "json"] }
 osmpbf = "0.3"
 rand = "0.8"
 rayon = "1"
+
+[profile.dev.package]
+insta.opt-level = 3
+similar.opt-level = 3

@@ -1,0 +1,8 @@
+---
+source: tests/parser.rs
+expression: result
+input_file: tests/fixtures/libosmium/t_io_data_pbf_version-1-gen.osm.pbf
+---
+[
+    Skip,
+]
