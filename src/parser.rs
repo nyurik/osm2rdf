@@ -10,18 +10,20 @@ use bytesize::ByteSize;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use geos::{CoordSeq, Geom, Geometry};
+use lazy_static::lazy_static;
 use osmnodecache::{Cache, CacheStore, DenseFileCache, DenseFileCacheOpts, HashMapCache};
-use osmpbf::{
-    BlobDecode, BlobReader, DenseNode, Info, Node, PrimitiveBlock, RelMemberType, Relation, Way,
-};
+use osmpbf::{BlobDecode, BlobReader, DenseNode, Info, Node, PrimitiveBlock, Relation, Way};
 use path_absolutize::Absolutize;
+use percent_encoding::utf8_percent_encode;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use regex::Regex;
 
-use crate::str_builder::StringBuf;
-use crate::utils::{to_utc, Element, Statement, Stats};
+use crate::str_builder::{
+    StringBuf, XsdBoolean, XsdElement, XsdIter, XsdPoint, XsdRaw, XsdRelMember, XsdStr,
+    XsdWikipedia,
+};
+use crate::utils::{to_utc, Element, Statement, Stats, PERCENT_ENC_SET};
 use crate::{Args, Command};
-use lazy_static::lazy_static;
 
 lazy_static! {
     /// Total length of the maximum "valid" local name is 60 (58 + first + last char)
@@ -29,7 +31,7 @@ lazy_static! {
     pub static ref RE_SIMPLE_LOCAL_NAME: Regex = Regex::new(r"^[0-9a-zA-Z_]([-:0-9a-zA-Z_]{0,58}[0-9a-zA-Z_])?$").unwrap();
     pub static ref RE_WIKIDATA_KEY: Regex = Regex::new(r"(.:)?wikidata$").unwrap();
     pub static ref RE_WIKIDATA_VALUE: Regex = Regex::new(r"^Q[1-9][0-9]{0,18}$").unwrap();
-    pub static ref RE_WIKIDATA_MULTI_VALUE: Regex = Regex::new(r"^Q[1-9][0-9]{0,18}(;Q[1-9][0-9]{0,18})+$").unwrap();
+    pub static ref RE_WIKIDATA_MULTI_VALUE: Regex = Regex::new(r"^Q[1-9][0-9]{0,18}(\s*;\s*Q[1-9][0-9]{0,18})+$").unwrap();
     pub static ref RE_WIKIPEDIA_VALUE: Regex = Regex::new(r"^([-a-z]+):(.+)$").unwrap();
 }
 
@@ -120,8 +122,8 @@ impl<'a> Parser<'a> {
                 self.stats.skipped_nodes += 1;
                 Statement::Skip
             } else {
-                value.push_point("osmm:loc", lat, lon);
-                Self::push_elem_type(&mut value, Element::Node);
+                value.push_value("osmm:loc", XsdPoint { lat, lon });
+                value.push_value("osmm:type", XsdElement(Element::Node));
                 self.stats.added_nodes += 1;
                 Statement::Create {
                     elem: Element::Node,
@@ -144,10 +146,10 @@ impl<'a> Parser<'a> {
         }
         let mut value = StringBuf::new(100000);
         self.push_all_tags(&mut value, way.tags());
-        Self::push_elem_type(&mut value, Element::Way);
+        value.push_value("osmm:type", XsdElement(Element::Way));
         let ts = Self::push_info(&mut value, &info);
         if let Err(err) = self.parse_way_geometry(&mut value, way) {
-            value.push_tag("osmm:loc:error", &err.to_string())
+            value.push_value("osmm:loc:error", XsdStr(&err.to_string()));
         }
 
         self.stats.added_ways += 1;
@@ -170,28 +172,16 @@ impl<'a> Parser<'a> {
         }
         let mut value = StringBuf::new(100000);
         self.push_all_tags(&mut value, rel.tags());
-        Self::push_elem_type(&mut value, Element::Relation);
+        value.push_value("osmm:type", XsdElement(Element::Relation));
+
         let ts = Self::push_info(&mut value, &info);
         for mbr in rel.members() {
             // Produce two statements - one to find all members of a relation,
             // and another to find the role of that relation
             //     osmrel:123  osmm:has    osmway:456
             //     osmrel:123  osmway:456  "inner"
-            let mbr_prefix = match mbr.member_type {
-                RelMemberType::Node => "osmnode:",
-                RelMemberType::Way => "osmway:",
-                RelMemberType::Relation => "osmrel:",
-            };
-            let mbr_id = mbr.member_id.to_string();
-
-            value.push_str("osmm:has ");
-            value.push_str(mbr_prefix);
-            value.push_str(&mbr_id);
-            value.push_str(";\n");
-            value.push_str(mbr_prefix);
-            value.push_str(&mbr_id);
-            value.push(' ');
-            value.push_quoted_str(mbr.role().unwrap());
+            value.push_value("osmm:has", XsdRelMember(&mbr));
+            value.push_value(XsdRelMember(&mbr), XsdStr(mbr.role().unwrap()));
         }
 
         self.stats.added_rels += 1;
@@ -214,17 +204,6 @@ impl<'a> Parser<'a> {
         ts
     }
 
-    fn push_elem_type(value: &mut StringBuf, element: Element) {
-        value.push_char_value(
-            "osmm:type",
-            match element {
-                Element::Node => 'n',
-                Element::Way => 'w',
-                Element::Relation => 'r',
-            },
-        );
-    }
-
     fn parse_way_geometry(&self, value: &mut StringBuf, way: &Way) -> anyhow::Result<()> {
         let refs: Vec<[f64; 2]> = way
             .refs()
@@ -235,9 +214,12 @@ impl<'a> Parser<'a> {
             .collect();
 
         let geometry = Geometry::create_line_string(CoordSeq::new_from_vec(&refs)?)?;
-        value.push_bool_value("osmm:isClosed", geometry.is_closed()?);
+        let value1 = geometry.is_closed()?;
+        value.push_value("osmm:isClosed", XsdBoolean(value1));
         let g = geometry.point_on_surface()?;
-        value.push_point("osmm:loc", g.get_y().unwrap(), g.get_x().unwrap());
+        let lat = g.get_y().unwrap();
+        let lon = g.get_x().unwrap();
+        value.push_value("osmm:loc", XsdPoint { lat, lon });
 
         Ok(())
     }
@@ -247,10 +229,39 @@ impl<'a> Parser<'a> {
         value: &mut StringBuf,
         tags: TTags,
     ) {
-        for (k, v) in tags {
-            if k != "created_by" {
-                value.push_tag(k, v);
+        for (key, val) in tags {
+            if key == "created_by" {
+                continue;
             }
+            if !RE_SIMPLE_LOCAL_NAME.is_match(key) {
+                // Record any unusual tag name in a "osmm:badkey" statement
+                value.push_value("osmm:badkey", XsdStr(val));
+                continue;
+            }
+
+            let prop = XsdRaw("osmt", key);
+            if key.contains("wikidata") {
+                if RE_WIKIDATA_VALUE.is_match(val) {
+                    value.push_value(prop, XsdRaw("wd", val));
+                    continue;
+                } else if RE_WIKIDATA_MULTI_VALUE.is_match(val) {
+                    value.push_value(
+                        prop,
+                        XsdIter(|| val.split(';').map(|v| XsdRaw("wd", v.trim()))),
+                    );
+                    continue;
+                }
+            } else if key.contains("wikipedia") {
+                if let Some(v) = RE_WIKIPEDIA_VALUE.captures(val) {
+                    let lang = v.get(1).unwrap().as_str();
+                    let title = v.get(2).unwrap().as_str();
+                    let title = title.replace(' ', "_");
+                    let title = &utf8_percent_encode(&title, PERCENT_ENC_SET);
+                    value.push_value(prop, XsdWikipedia { lang, title });
+                    continue;
+                }
+            }
+            value.push_value(prop, XsdStr(val));
         }
     }
 }
