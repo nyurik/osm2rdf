@@ -13,7 +13,7 @@ use flate2::Compression;
 use geo::{Centroid, LineString};
 use log::{info, warn};
 use osmnodecache::{Cache, CacheStore, DenseFileCache, DenseFileCacheOpts, HashMapCache};
-use osmpbf::{BlobDecode, BlobReader, DenseNode, Node, PrimitiveBlock, Relation, Way};
+use osmpbf::{Blob, BlobDecode, BlobReader, DenseNode, Node, PrimitiveBlock, Relation, Way};
 use path_absolutize::Absolutize as _;
 use rayon::iter::{ParallelBridge as _, ParallelIterator as _};
 
@@ -63,7 +63,7 @@ pub struct Parser<'a> {
 
 impl<'a> Drop for Parser<'a> {
     fn drop(&mut self) {
-        let stats = std::mem::take(&mut self.stats);
+        let stats = mem::take(&mut self.stats);
         self.parent_stats.lock().unwrap().combine(stats);
     }
 }
@@ -321,6 +321,7 @@ pub fn parse(opt: Args) -> anyhow::Result<()> {
             output_dir,
             max_file_size,
         } => {
+            let is_multithreaded = matches!(workers, Some(v) if v > 0);
             if let Some(v) = workers {
                 rayon::ThreadPoolBuilder::new()
                     .thread_name(|i| format!("parser #{i}"))
@@ -336,7 +337,7 @@ pub fn parse(opt: Args) -> anyhow::Result<()> {
             let stats = if let Some(filename) = &opt.planet_cache {
                 info!("Creating dense cache in {:?}", filename.display());
                 let cache = create_flat_cache(filename.clone())?;
-                parse_with_cache(cache, sender, reader)
+                run_with_cache(cache, sender, reader, is_multithreaded)
             } else {
                 let cache = if let Some(filename) = &opt.small_cache {
                     if filename.exists() {
@@ -349,7 +350,7 @@ pub fn parse(opt: Args) -> anyhow::Result<()> {
                     HashMapCache::new()
                 };
 
-                let stats = parse_with_cache(cache.clone(), sender, reader);
+                let stats = run_with_cache(cache.clone(), sender, reader, is_multithreaded);
 
                 if let Some(filename) = &opt.small_cache {
                     info!("Saving sparse cache to {:?}", filename.display());
@@ -366,19 +367,36 @@ pub fn parse(opt: Args) -> anyhow::Result<()> {
     }
 }
 
-pub fn parse_with_cache<R: Read + Send, C: CacheStore + Clone + Send>(
-    cache: C,
-    sender: Sender<Vec<Statement>>,
+fn run_with_cache<R: Read + Send, C: CacheStore + Clone + Send>(
+    mut cache: C,
+    mut sender: Sender<Vec<Statement>>,
     reader: BlobReader<R>,
+    is_multithreaded: bool,
 ) -> Stats {
     let stats = Mutex::new(Stats::default());
-    reader
-        .par_bridge()
-        .for_each_with((cache, sender), |(dfc, sender), blob| {
-            if let BlobDecode::OsmData(block) = blob.unwrap().decode().unwrap() {
-                let mut parser = Parser::new(&stats, dfc.get_accessor(), 1024);
-                parser.parse_block(block, |s| sender.send(s).unwrap());
-            };
-        });
+    if is_multithreaded {
+        reader
+            .par_bridge()
+            .for_each_with((cache, sender), |(dfc, sender), blob| {
+                run_block(&stats, dfc, sender, blob);
+            });
+    } else {
+        info!("Running in single-threaded mode");
+        for blob in reader {
+            run_block(&stats, &mut cache, &mut sender, blob);
+        }
+    }
     stats.into_inner().unwrap()
+}
+
+fn run_block<C: CacheStore + Clone + Send>(
+    stats: &Mutex<Stats>,
+    dfc: &mut C,
+    sender: &mut Sender<Vec<Statement>>,
+    blob: Result<Blob, osmpbf::Error>,
+) {
+    if let BlobDecode::OsmData(block) = blob.unwrap().decode().unwrap() {
+        let mut parser = Parser::new(stats, dfc.get_accessor(), 1024);
+        parser.parse_block(block, |s| sender.send(s).unwrap());
+    }
 }

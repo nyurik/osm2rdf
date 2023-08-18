@@ -13,6 +13,19 @@ expression: ttl_file_content
 @prefix osmt: <https://wiki.openstreetmap.org/wiki/Key:>.
 @prefix osmm: <https://www.openstreetmap.org/meta/>.
 
+osmnode:14
+osmt:test "node";
+osmt:wikidata wd:Q12345;
+osmt:royal_cypher:wikidata wd:Q1,wd:Q2,wd:Q3456789;
+osmt:wikipedia <https://en.wikipedia.org/wiki/Some_%28restaurant%29>;
+osmm:badkey "my !@#$ '\"bad&key";
+osmm:loc "Point(1.4000000000000001 1)"^^geo:wktLiteral;
+osmm:type "n";
+osmm:version "1"^^xsd:integer;
+osmm:user "test";
+osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+osmm:changeset "1"^^xsd:integer.
+
 osmway:20
 osmt:highway "primary";
 osmm:type "w";
@@ -62,19 +75,6 @@ osmt:test "relinrel";
 osmm:type "r";
 osmm:has osmrel:30;
 osmrel:30 "none";
-osmm:version "1"^^xsd:integer;
-osmm:user "test";
-osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
-osmm:changeset "1"^^xsd:integer.
-
-osmnode:14
-osmt:test "node";
-osmt:wikidata wd:Q12345;
-osmt:royal_cypher:wikidata wd:Q1,wd:Q2,wd:Q3456789;
-osmt:wikipedia <https://en.wikipedia.org/wiki/Some_%28restaurant%29>;
-osmm:badkey "my !@#$ '\"bad&key";
-osmm:loc "Point(1.4000000000000001 1)"^^geo:wktLiteral;
-osmm:type "n";
 osmm:version "1"^^xsd:integer;
 osmm:user "test";
 osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;

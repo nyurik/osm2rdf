@@ -52,6 +52,8 @@ fn generate_ttl() {
         "parse",
         test_file.to_str().unwrap(),
         temp_dir_path.to_str().unwrap(),
+        "--workers",
+        "0",
     ]))
     .unwrap();
 
