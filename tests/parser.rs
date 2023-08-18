@@ -1,11 +1,11 @@
-use clap::Parser as _;
-use flate2::read::GzDecoder;
 use std::fs::File;
 use std::io::Read;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use clap::Parser as _;
+use flate2::read::GzDecoder;
 use insta::glob;
 use osm2rdf::parser::Parser;
 use osm2rdf::utils::Stats;

@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display, Write as _};
 use std::ops::{Deref, DerefMut};
 
-use chrono::{TimeZone, Utc};
+use chrono::{TimeZone as _, Utc};
 use json::JsonValue;
 use lazy_static::lazy_static;
 use osmpbf::{RelMember, RelMemberType};

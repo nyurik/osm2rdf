@@ -3,8 +3,6 @@ use std::fmt::{Debug, Display};
 use osmpbf::{DenseNodeInfo, Info};
 use percent_encoding::{AsciiSet, CONTROLS};
 
-use crate::str_builder::StringBuf;
-
 pub const PERCENT_ENC_SET: &AsciiSet = &CONTROLS
     .add(b';')
     .add(b'@')
@@ -43,21 +41,6 @@ impl Stats {
         self.deleted_ways += other.deleted_ways;
         self.blocks += 1;
     }
-}
-
-#[derive(Debug)]
-pub enum Statement {
-    Skip,
-    Delete {
-        elem: Element,
-        id: i64,
-    },
-    Create {
-        elem: Element,
-        id: i64,
-        ts: i64,
-        val: StringBuf,
-    },
 }
 
 #[derive(Debug)]

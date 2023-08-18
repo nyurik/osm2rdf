@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Read, Write as _};
 use std::mem;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
@@ -14,13 +14,13 @@ use geo::{Centroid, LineString};
 use log::{info, warn};
 use osmnodecache::{Cache, CacheStore, DenseFileCache, DenseFileCacheOpts, HashMapCache};
 use osmpbf::{BlobDecode, BlobReader, DenseNode, Node, PrimitiveBlock, Relation, Way};
-use path_absolutize::Absolutize;
-use rayon::iter::{ParallelBridge, ParallelIterator};
+use path_absolutize::Absolutize as _;
+use rayon::iter::{ParallelBridge as _, ParallelIterator as _};
 
 use crate::str_builder::{
     StringBuf, XsdBoolean, XsdDateTime, XsdElement, XsdPoint, XsdRelMember, XsdStr,
 };
-use crate::utils::{Element, ElementInfo, Statement, Stats};
+use crate::utils::{Element, ElementInfo, Stats};
 use crate::{Args, Command};
 
 //noinspection HttpUrlsUsage
@@ -38,6 +38,21 @@ static PREFIXES: &[&str] = &[
     "prefix osmt: <https://wiki.openstreetmap.org/wiki/Key:>",
     "prefix osmm: <https://www.openstreetmap.org/meta/>",
 ];
+
+#[derive(Debug)]
+pub enum Statement {
+    Skip,
+    Delete {
+        elem: Element,
+        id: i64,
+    },
+    Create {
+        elem: Element,
+        id: i64,
+        ts: i64,
+        val: StringBuf,
+    },
+}
 
 pub struct Parser<'a> {
     parent_stats: &'a Mutex<Stats>,

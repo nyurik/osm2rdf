@@ -1,6 +1,6 @@
 [package]
 name = "osm2rdf"
-version = "0.3.0"
+version = "0.3.1"
 description = "A tool to convert OpenStreetMap database dump into RDF TTL files for injesting into an RDF database"
 authors = ["Yuri Astrakhan <YuriAstrakhan@gmail.com>"]
 repository = "https://github.com/nyurik/osm2rdf"
@@ -21,7 +21,6 @@ path = "src/bin/main.rs"
 
 [dependencies]
 anyhow = "1"
-byteorder = "1"
 bytesize = "1"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
@@ -31,7 +30,6 @@ geo = "0.26"
 json = "0.12"
 lazy_static = "1"
 log = "0.4"
-memmap2 = "0.7"
 osmnodecache = "0.8"
 osmpbf = "0.3"
 path-absolutize = "3"
