@@ -8,7 +8,6 @@ pub mod str_builder;
 pub mod utils;
 
 // group = ArgGroup::with_name("cache").required(true)
-// about = "Imports and updates OSM data in an RDF database.",
 
 #[derive(Parser, Debug)]
 #[command(about, version)]

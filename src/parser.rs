@@ -10,7 +10,6 @@ use bytesize::ByteSize;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use geo::{Centroid, LineString};
-// use geos::{CoordSeq, Geom, Geometry};
 use osmnodecache::{Cache, CacheStore, DenseFileCache, DenseFileCacheOpts, HashMapCache};
 use osmpbf::{BlobDecode, BlobReader, DenseNode, Node, PrimitiveBlock, Relation, Way};
 use path_absolutize::Absolutize;

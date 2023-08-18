@@ -31,7 +31,8 @@ test:
 bless:
     cargo insta test --accept --unreferenced=auto
 
-_osm-to-pbf DIR FORMAT="pbf" PREFIX="":
+[private]
+osm-to-pbf DIR FORMAT="pbf" PREFIX="":
     #!/usr/bin/env bash
     set -euo pipefail
     shopt -s nullglob
@@ -43,8 +44,13 @@ _osm-to-pbf DIR FORMAT="pbf" PREFIX="":
     done
 
 # Regenerate PBF files from OSM source files in tests/fixtures
-gen-pbf: (_osm-to-pbf "libosmium") (_osm-to-pbf "osm2rdf" "pbf,pbf_dense_nodes=true" "dense_") (_osm-to-pbf "osm2rdf" "pbf,pbf_dense_nodes=false" "nodense_")
+gen-pbf: (osm-to-pbf "libosmium") (osm-to-pbf "osm2rdf" "pbf,pbf_dense_nodes=true" "dense_") (osm-to-pbf "osm2rdf" "pbf,pbf_dense_nodes=false" "nodense_")
 
 # Run all tests, review, and approve them
 review:
     cargo insta test --review --unreferenced=auto
+
+# Run osm2pbf
+[no-exit-message]
+run *ARGS:
+    cargo run -- {{ ARGS }}
