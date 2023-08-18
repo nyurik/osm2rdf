@@ -1,15 +1,9 @@
 use std::fmt::{Debug, Display};
 
-use chrono::{DateTime, TimeZone, Utc};
 use osmpbf::{DenseNodeInfo, Info};
 use percent_encoding::{AsciiSet, CONTROLS};
 
 use crate::str_builder::StringBuf;
-
-pub fn to_utc(milli_timestamp: i64) -> DateTime<Utc> {
-    Utc.timestamp_opt(milli_timestamp / 1000, (milli_timestamp % 1000) as u32)
-        .unwrap()
-}
 
 pub const PERCENT_ENC_SET: &AsciiSet = &CONTROLS
     .add(b';')

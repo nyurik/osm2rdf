@@ -1,0 +1,82 @@
+---
+source: tests/parser.rs
+expression: ttl_file_content
+---
+@prefix wd: <http://www.wikidata.org/entity/>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix geo: <http://www.opengis.net/ont/geosparql#>.
+@prefix schema: <http://schema.org/>.
+@prefix osmroot: <https://www.openstreetmap.org>.
+@prefix osmnode: <https://www.openstreetmap.org/node/>.
+@prefix osmway: <https://www.openstreetmap.org/way/>.
+@prefix osmrel: <https://www.openstreetmap.org/relation/>.
+@prefix osmt: <https://wiki.openstreetmap.org/wiki/Key:>.
+@prefix osmm: <https://www.openstreetmap.org/meta/>.
+
+osmway:20
+osmt:highway "primary";
+osmm:type "w";
+osmm:isClosed "false"^^xsd:boolean;
+osmm:loc "Point(0.9999999827705325 1.049999963049777)"^^geo:wktLiteral;
+osmm:version "1"^^xsd:integer;
+osmm:user "test";
+osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+osmm:changeset "1"^^xsd:integer.
+
+osmway:21
+osmt:highway "residential";
+osmm:type "w";
+osmm:isClosed "false"^^xsd:boolean;
+osmm:loc "Point(0.9999999827705325 1.1499999655177815)"^^geo:wktLiteral;
+osmm:version "1"^^xsd:integer;
+osmm:user "test";
+osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+osmm:changeset "1"^^xsd:integer.
+
+osmrel:30
+osmt:type "test";
+osmm:type "r";
+osmm:has osmnode:10;
+osmnode:10 "none";
+osmm:version "1"^^xsd:integer;
+osmm:user "test";
+osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+osmm:changeset "1"^^xsd:integer.
+
+osmrel:31
+osmt:type "restriction";
+osmm:type "r";
+osmm:has osmway:20;
+osmway:20 "from";
+osmm:has osmnode:11;
+osmnode:11 "via";
+osmm:has osmway:22;
+osmway:22 "to";
+osmm:version "1"^^xsd:integer;
+osmm:user "test";
+osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+osmm:changeset "1"^^xsd:integer.
+
+osmrel:32
+osmt:test "relinrel";
+osmm:type "r";
+osmm:has osmrel:30;
+osmrel:30 "none";
+osmm:version "1"^^xsd:integer;
+osmm:user "test";
+osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+osmm:changeset "1"^^xsd:integer.
+
+osmnode:14
+osmt:test "node";
+osmt:wikidata wd:Q12345;
+osmt:royal_cypher:wikidata wd:Q1,wd:Q2,wd:Q3456789;
+osmt:wikipedia <https://en.wikipedia.org/wiki/Some_%28restaurant%29>;
+osmm:badkey "my !@#$ '\"bad&key";
+osmm:loc "Point(1.4000000000000001 1)"^^geo:wktLiteral;
+osmm:type "n";
+osmm:version "1"^^xsd:integer;
+osmm:user "test";
+osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+osmm:changeset "1"^^xsd:integer.
+

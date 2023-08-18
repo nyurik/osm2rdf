@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{Read, Write};
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -10,19 +11,39 @@ use bytesize::ByteSize;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use geo::{Centroid, LineString};
+use log::{info, warn};
 use osmnodecache::{Cache, CacheStore, DenseFileCache, DenseFileCacheOpts, HashMapCache};
 use osmpbf::{BlobDecode, BlobReader, DenseNode, Node, PrimitiveBlock, Relation, Way};
 use path_absolutize::Absolutize;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 
-use crate::str_builder::{StringBuf, XsdBoolean, XsdElement, XsdPoint, XsdRelMember, XsdStr};
-use crate::utils::{to_utc, Element, ElementInfo, Statement, Stats};
+use crate::str_builder::{
+    StringBuf, XsdBoolean, XsdDateTime, XsdElement, XsdPoint, XsdRelMember, XsdStr,
+};
+use crate::utils::{Element, ElementInfo, Statement, Stats};
 use crate::{Args, Command};
+
+//noinspection HttpUrlsUsage
+static PREFIXES: &[&str] = &[
+    // Wikidata
+    "prefix wd: <http://www.wikidata.org/entity/>",
+    "prefix xsd: <http://www.w3.org/2001/XMLSchema#>",
+    "prefix geo: <http://www.opengis.net/ont/geosparql#>",
+    "prefix schema: <http://schema.org/>",
+    // OSM
+    "prefix osmroot: <https://www.openstreetmap.org>",
+    "prefix osmnode: <https://www.openstreetmap.org/node/>",
+    "prefix osmway: <https://www.openstreetmap.org/way/>",
+    "prefix osmrel: <https://www.openstreetmap.org/relation/>",
+    "prefix osmt: <https://wiki.openstreetmap.org/wiki/Key:>",
+    "prefix osmm: <https://www.openstreetmap.org/meta/>",
+];
 
 pub struct Parser<'a> {
     parent_stats: &'a Mutex<Stats>,
     stats: Stats,
     cache: Box<dyn Cache + 'a>,
+    batch_size: usize,
 }
 
 impl<'a> Drop for Parser<'a> {
@@ -33,11 +54,47 @@ impl<'a> Drop for Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(parent_stats: &'a Mutex<Stats>, cache: Box<dyn 'a + Cache>) -> Parser<'a> {
+    pub fn new(
+        parent_stats: &'a Mutex<Stats>,
+        cache: Box<dyn 'a + Cache>,
+        batch_size: usize,
+    ) -> Parser<'a> {
         Parser {
             parent_stats,
             stats: Stats::default(),
             cache,
+            batch_size,
+        }
+    }
+
+    pub fn parse_block(&mut self, block: PrimitiveBlock, mut writer: impl FnMut(Vec<Statement>)) {
+        let batch_size = self.batch_size;
+        let mut result: Vec<Statement> = Vec::with_capacity(batch_size);
+        let mut enqueue = |s: Statement| {
+            result.push(s);
+            if result.len() > batch_size {
+                writer(mem::replace(&mut result, Vec::with_capacity(batch_size)));
+            }
+        };
+
+        for group in block.groups() {
+            // FIXME: possible concurrency bug: a non-node element may need coords of a node that hasn't been processed yet
+            for node in group.nodes() {
+                enqueue(self.on_node(&node));
+            }
+            for node in group.dense_nodes() {
+                enqueue(self.on_dense_node(&node));
+            }
+            for way in group.ways() {
+                enqueue(self.on_way(&way));
+            }
+            for rel in group.relations() {
+                enqueue(self.on_relation(&rel));
+            }
+        }
+
+        if !result.is_empty() {
+            writer(result);
         }
     }
 
@@ -174,7 +231,7 @@ fn create_flat_cache(filename: PathBuf) -> anyhow::Result<DenseFileCache> {
     Ok(DenseFileCacheOpts::new(filename)
         .page_size(10 * 1024 * 1024 * 1024)
         .on_size_change(Some(|old_size, new_size| {
-            println!(
+            info!(
                 "Growing cache {} ➡ {}",
                 ByteSize(old_size as u64),
                 ByteSize(new_size as u64)
@@ -186,7 +243,7 @@ fn create_flat_cache(filename: PathBuf) -> anyhow::Result<DenseFileCache> {
 fn start_writer_thread(
     output_dir: &Path,
     max_file_size: usize,
-    receiver: Receiver<Statement>,
+    receiver: Receiver<Vec<Statement>>,
 ) -> JoinHandle<()> {
     let output_dir = output_dir.to_path_buf();
     let file_index = AtomicU32::new(0);
@@ -197,33 +254,48 @@ fn start_writer_thread(
         .spawn(move || {
             let mut encoder = None;
             let mut size = 0_usize;
-            while let Ok(v) = receiver.recv() {
-                if let Statement::Create { elem, id, val, ts } = v {
-                    oldest_ts.fetch_max(ts, Ordering::Relaxed);
+            while let Ok(batch) = receiver.recv() {
+                for statement in batch {
+                    match statement {
+                        Statement::Create { elem, id, val, ts } => {
+                            oldest_ts.fetch_max(ts, Ordering::Relaxed);
 
-                    let enc = encoder.get_or_insert_with(|| new_gz_file(&output_dir, &file_index));
-                    writeln!(enc, "{elem}:{id}\n{val}").unwrap();
+                            let enc = encoder
+                                .get_or_insert_with(|| new_gz_file(&output_dir, &file_index));
+                            write!(enc, "\n{elem}:{id}\n{val}").unwrap();
 
-                    size += val.len();
-                    if size > max_file_size {
-                        encoder.take().unwrap().finish().unwrap();
-                        size = 0;
+                            size += val.len();
+                            if size > max_file_size {
+                                encoder.take().unwrap().finish().unwrap();
+                                size = 0;
+                            }
+                        }
+                        Statement::Skip => {}
+                        Statement::Delete { elem, id } => {
+                            warn!("Delete {elem}:{id} is not supported");
+                        }
                     }
                 }
             }
 
+            // Create a separate file with the date of the last modification
             let mut enc = new_gz_file(&output_dir, &file_index);
-            let ts = to_utc(oldest_ts.load(Ordering::SeqCst));
-            writeln!(enc, "osmroot: schema:dateModified {ts}.").unwrap();
+            let ts = XsdDateTime(oldest_ts.load(Ordering::SeqCst));
+            writeln!(enc, "\nosmroot: schema:dateModified {ts}.").unwrap();
         })
         .unwrap()
 }
 
 fn new_gz_file(output_dir: &Path, file_index: &AtomicU32) -> GzEncoder<File> {
     let index = file_index.fetch_add(1, Ordering::Relaxed);
-    let file = output_dir.join(format!("osm-{index:06}.ttl.gz"));
-    println!("Creating {:?}", file.absolutize().unwrap());
-    GzEncoder::new(File::create(file).unwrap(), Compression::default())
+    let filename = output_dir.join(format!("osm-{index:06}.ttl.gz"));
+    info!("Creating {:?}", filename.absolutize().unwrap());
+    let file = File::create(filename).unwrap();
+    let mut enc = GzEncoder::new(file, Compression::default());
+    for prefix in PREFIXES {
+        writeln!(enc, "@{prefix}.").unwrap();
+    }
+    enc
 }
 
 pub fn parse(opt: Args) -> anyhow::Result<()> {
@@ -246,57 +318,52 @@ pub fn parse(opt: Args) -> anyhow::Result<()> {
                 start_writer_thread(&output_dir, max_file_size * 1024 * 1024, receiver);
 
             let reader = BlobReader::from_path(input_file)?;
-            if let Some(filename) = &opt.planet_cache {
+            let stats = if let Some(filename) = &opt.planet_cache {
+                info!("Creating dense cache in {:?}", filename.display());
                 let cache = create_flat_cache(filename.clone())?;
-                parse_with_cache(cache, sender, reader);
+                parse_with_cache(cache, sender, reader)
             } else {
-                let filename = &opt.small_cache.unwrap();
-                let cache = if filename.exists() {
-                    HashMapCache::from_bin(filename)?
+                let cache = if let Some(filename) = &opt.small_cache {
+                    if filename.exists() {
+                        info!("Loading sparse cache from {:?}", filename.display());
+                        HashMapCache::from_bin(filename)?
+                    } else {
+                        HashMapCache::new()
+                    }
                 } else {
                     HashMapCache::new()
                 };
-                parse_with_cache(cache.clone(), sender, reader);
-                cache.save_as_bin(filename)?;
-            }
+
+                let stats = parse_with_cache(cache.clone(), sender, reader);
+
+                if let Some(filename) = &opt.small_cache {
+                    info!("Saving sparse cache to {:?}", filename.display());
+                    cache.save_as_bin(filename)?;
+                }
+
+                stats
+            };
 
             writer_thread.join().unwrap();
+            info!("Run statistics:\n{stats:#?}");
             Ok(())
-        } // _ => panic!("Expecting Parse")
+        }
     }
 }
 
 pub fn parse_with_cache<R: Read + Send, C: CacheStore + Clone + Send>(
     cache: C,
-    sender: Sender<Statement>,
+    sender: Sender<Vec<Statement>>,
     reader: BlobReader<R>,
-) {
+) -> Stats {
     let stats = Mutex::new(Stats::default());
     reader
         .par_bridge()
-        .for_each_with((cache, sender), |(dfc, writer), blob| {
+        .for_each_with((cache, sender), |(dfc, sender), blob| {
             if let BlobDecode::OsmData(block) = blob.unwrap().decode().unwrap() {
-                let mut parser = Parser::new(&stats, dfc.get_accessor());
-                parse_block(block, &mut parser, |s| writer.send(s).unwrap());
+                let mut parser = Parser::new(&stats, dfc.get_accessor(), 1024);
+                parser.parse_block(block, |s| sender.send(s).unwrap());
             };
         });
-    println!("{:#?}", stats.lock().unwrap());
-}
-
-pub fn parse_block(block: PrimitiveBlock, parser: &mut Parser, mut writer: impl FnMut(Statement)) {
-    for group in block.groups() {
-        // FIXME: possible concurrency bug: a non-node element may need coords of a node that hasn't been processed yet
-        for node in group.nodes() {
-            writer(parser.on_node(&node));
-        }
-        for node in group.dense_nodes() {
-            writer(parser.on_dense_node(&node));
-        }
-        for way in group.ways() {
-            writer(parser.on_way(&way));
-        }
-        for rel in group.relations() {
-            writer(parser.on_relation(&rel));
-        }
-    }
+    stats.into_inner().unwrap()
 }

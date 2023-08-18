@@ -1,0 +1,17 @@
+---
+source: tests/parser.rs
+expression: ttl_file_content
+---
+@prefix wd: <http://www.wikidata.org/entity/>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix geo: <http://www.opengis.net/ont/geosparql#>.
+@prefix schema: <http://schema.org/>.
+@prefix osmroot: <https://www.openstreetmap.org>.
+@prefix osmnode: <https://www.openstreetmap.org/node/>.
+@prefix osmway: <https://www.openstreetmap.org/way/>.
+@prefix osmrel: <https://www.openstreetmap.org/relation/>.
+@prefix osmt: <https://wiki.openstreetmap.org/wiki/Key:>.
+@prefix osmm: <https://www.openstreetmap.org/meta/>.
+
+osmroot: schema:dateModified "2014-01-01 00:00:00 UTC"^^xsd:dateTime.
+

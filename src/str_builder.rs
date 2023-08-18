@@ -1,13 +1,13 @@
 use std::fmt::{Debug, Display, Write as _};
 use std::ops::{Deref, DerefMut};
 
+use chrono::{TimeZone, Utc};
 use json::JsonValue;
 use lazy_static::lazy_static;
 use osmpbf::{RelMember, RelMemberType};
 use percent_encoding::utf8_percent_encode;
 use regex::Regex;
 
-use crate::utils;
 use crate::utils::{Element, ElementInfo, PERCENT_ENC_SET};
 
 lazy_static! {
@@ -166,8 +166,8 @@ impl Display for XsdPoint {
 }
 
 pub struct XsdWikipedia<'a, T: Display> {
-    pub lang: &'a str,
-    pub title: &'a T,
+    lang: &'a str,
+    title: &'a T,
 }
 
 impl<T: Display> XsdValue for XsdWikipedia<'_, T> {}
@@ -199,12 +199,13 @@ impl Display for XsdBoolean {
     }
 }
 
-pub struct XsdDateTime(i64);
+pub struct XsdDateTime(pub i64);
 impl XsdValue for XsdDateTime {}
 impl Display for XsdDateTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // "{0:%Y-%m-%dT%H:%M:%S}Z"^^xsd:dateTime
-        let ts = utils::to_utc(self.0);
+        let ms = self.0;
+        let ts = Utc.timestamp_opt(ms / 1000, (ms % 1000) as u32).unwrap();
         write!(f, r#""{ts}"^^xsd:dateTime"#)
     }
 }
@@ -217,7 +218,7 @@ impl Display for XsdStr<'_> {
     }
 }
 
-pub struct XsdRaw<'a>(pub &'a str, pub &'a str);
+pub struct XsdRaw<'a>(&'a str, pub &'a str);
 impl XsdValue for XsdRaw<'_> {}
 impl Display for XsdRaw<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -252,7 +253,7 @@ impl Display for XsdRelMember<'_> {
     }
 }
 
-pub struct XsdIter<F>(pub F);
+pub struct XsdIter<F>(F);
 impl<F: Fn() -> I, I: Iterator<Item = V>, V: Display> XsdValue for XsdIter<F> {}
 impl<F: Fn() -> I, I: Iterator<Item = V>, V: Display> Display for XsdIter<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
