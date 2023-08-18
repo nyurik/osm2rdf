@@ -9,6 +9,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["osm", "rdf", "openstreetmap", "ttl"]
 categories = ["database", "science::geo "]
 rust-version = "1.71.0"
+exclude = ["/tests/fixtures", "/tests/snapshots"]
 
 [lib]
 name = "osm2rdf"
