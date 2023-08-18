@@ -78,13 +78,15 @@ impl Display for StringBuf {
     }
 }
 
-impl StringBuf {
-    pub fn new(capacity: usize) -> Self {
+impl Default for StringBuf {
+    fn default() -> Self {
         Self {
-            buf: String::with_capacity(capacity),
+            buf: String::with_capacity(100000),
         }
     }
+}
 
+impl StringBuf {
     pub fn is_empty(&self) -> bool {
         self.buf.is_empty()
     }

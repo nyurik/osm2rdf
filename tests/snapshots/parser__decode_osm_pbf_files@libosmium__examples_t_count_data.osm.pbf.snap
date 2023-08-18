@@ -13,7 +13,7 @@ input_file: tests/fixtures/libosmium/examples_t_count_data.osm.pbf
         val: indoc! {r#"
             osmm:type "w";
             osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(51.02885679855424 13.724815842567391)"^^geo:wktLiteral;
+            osmm:loc "Point(51.0280084451791 13.725017762614888)"^^geo:wktLiteral;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2000-01-01 10:11:12 UTC"^^xsd:dateTime;

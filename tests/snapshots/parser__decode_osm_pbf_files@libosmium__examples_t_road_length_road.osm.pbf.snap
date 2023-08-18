@@ -39,7 +39,7 @@ input_file: tests/fixtures/libosmium/examples_t_road_length_road.osm.pbf
             osmt:surface "asphalt";
             osmm:type "w";
             osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(51.02896169807248 13.724791618867215)"^^geo:wktLiteral;
+            osmm:loc "Point(51.028965927062565 13.724786759330893)"^^geo:wktLiteral;
             osmm:version "21"^^xsd:integer;
             osmm:user "Seandebasti";
             osmm:timestamp "2014-10-14 04:09:13 UTC"^^xsd:dateTime;

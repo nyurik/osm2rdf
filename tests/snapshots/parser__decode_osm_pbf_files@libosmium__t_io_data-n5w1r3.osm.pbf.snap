@@ -17,7 +17,7 @@ input_file: tests/fixtures/libosmium/t_io_data-n5w1r3.osm.pbf
             osmt:highway "primary";
             osmm:type "w";
             osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(0.9999999827705324 1.0999999852385371)"^^geo:wktLiteral;
+            osmm:loc "Point(0.9999999827705325 1.049999963049777)"^^geo:wktLiteral;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;

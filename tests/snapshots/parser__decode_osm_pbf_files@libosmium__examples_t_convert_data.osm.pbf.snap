@@ -17,7 +17,7 @@ input_file: tests/fixtures/libosmium/examples_t_convert_data.osm.pbf
             osmt:test:id "701";
             osmm:type "w";
             osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(1.039999975375831 7.109999995264225)"^^geo:wktLiteral;
+            osmm:loc "Point(1.0324999636655992 7.11749996506494)"^^geo:wktLiteral;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
@@ -33,7 +33,7 @@ input_file: tests/fixtures/libosmium/examples_t_convert_data.osm.pbf
             osmt:test:id "701";
             osmm:type "w";
             osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(1.009999970444478 7.139999916376546)"^^geo:wktLiteral;
+            osmm:loc "Point(1.01749998215471 7.13249994657583)"^^geo:wktLiteral;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;

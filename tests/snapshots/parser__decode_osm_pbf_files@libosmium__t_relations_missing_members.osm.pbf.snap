@@ -30,7 +30,7 @@ input_file: tests/fixtures/libosmium/t_relations_missing_members.osm.pbf
             osmt:public_transport "platform";
             osmm:type "w";
             osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(0.9999999827705324 1.0999999852385371)"^^geo:wktLiteral;
+            osmm:loc "Point(0.9999999827705325 1.049999963049777)"^^geo:wktLiteral;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
@@ -45,7 +45,7 @@ input_file: tests/fixtures/libosmium/t_relations_missing_members.osm.pbf
             osmt:public_transport "platform";
             osmm:type "w";
             osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(0.9999999827705324 1.299999990174547)"^^geo:wktLiteral;
+            osmm:loc "Point(0.9999999827705325 1.2499999679857865)"^^geo:wktLiteral;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;

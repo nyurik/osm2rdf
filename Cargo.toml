@@ -25,7 +25,7 @@ bytesize = "1"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
 flate2 = "1"
-geos = "8"
+geo = "0.26"
 json = "0.12"
 lazy_static = "1"
 memmap2 = "0.7"

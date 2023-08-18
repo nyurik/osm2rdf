@@ -19,7 +19,7 @@ input_file: tests/fixtures/libosmium/examples_t_amenity_list_area.osm.pbf
             osmt:name "Seamen's Club";
             osmm:type "w";
             osmm:isClosed "true"^^xsd:boolean;
-            osmm:loc "Point(53.560254379902155 8.583793299544507)"^^geo:wktLiteral;
+            osmm:loc "Point(53.56017820787392 8.5839141731814)"^^geo:wktLiteral;
             osmm:version "4"^^xsd:integer;
             osmm:user "Lutalica_1974";
             osmm:timestamp "2016-08-17 19:16:40 UTC"^^xsd:dateTime;

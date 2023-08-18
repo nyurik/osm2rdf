@@ -9,7 +9,8 @@ use std::thread::{Builder, JoinHandle};
 use bytesize::ByteSize;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use geos::{CoordSeq, Geom, Geometry};
+use geo::{Centroid, LineString};
+// use geos::{CoordSeq, Geom, Geometry};
 use osmnodecache::{Cache, CacheStore, DenseFileCache, DenseFileCacheOpts, HashMapCache};
 use osmpbf::{BlobDecode, BlobReader, DenseNode, Node, PrimitiveBlock, Relation, Way};
 use path_absolutize::Absolutize;
@@ -67,7 +68,7 @@ impl<'a> Parser<'a> {
             }
         } else {
             self.cache.set_lat_lon(id as usize, lat, lon);
-            let mut value = StringBuf::new(100000);
+            let mut value = StringBuf::default();
             value.add_tags(tags);
             if value.is_empty() {
                 self.stats.skipped_nodes += 1;
@@ -95,7 +96,7 @@ impl<'a> Parser<'a> {
                 id: way.id(),
             };
         }
-        let mut value = StringBuf::new(100000);
+        let mut value = StringBuf::default();
         value.add_tags(way.tags());
         value.add_value("osmm:type", XsdElement(Element::Way));
         if let Err(err) = self.parse_way_geometry(&mut value, way) {
@@ -121,7 +122,7 @@ impl<'a> Parser<'a> {
             };
         }
 
-        let mut value = StringBuf::new(100000);
+        let mut value = StringBuf::default();
         value.add_tags(rel.tags());
         value.add_value("osmm:type", XsdElement(Element::Relation));
 
@@ -147,7 +148,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_way_geometry(&self, value: &mut StringBuf, way: &Way) -> anyhow::Result<()> {
-        let refs: Vec<[f64; 2]> = way
+        let geometry: LineString = way
             .refs()
             .map(|id| {
                 let (lat, lng) = self.cache.get_lat_lon(id as usize);
@@ -155,13 +156,16 @@ impl<'a> Parser<'a> {
             })
             .collect();
 
-        let geometry = Geometry::create_line_string(CoordSeq::new_from_vec(&refs)?)?;
-        let value1 = geometry.is_closed()?;
+        let value1 = geometry.is_closed();
         value.add_value("osmm:isClosed", XsdBoolean(value1));
-        let g = geometry.point_on_surface()?;
-        let lat = g.get_y().unwrap();
-        let lon = g.get_x().unwrap();
-        value.add_value("osmm:loc", XsdPoint { lat, lon });
+
+        if let Some(g) = geometry.centroid() {
+            let point = XsdPoint {
+                lat: g.y(),
+                lon: g.x(),
+            };
+            value.add_value("osmm:loc", point);
+        }
 
         Ok(())
     }
