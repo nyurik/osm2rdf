@@ -313,58 +313,58 @@ fn new_gz_file(output_dir: &Path, file_index: &AtomicU32) -> GzEncoder<File> {
     enc
 }
 
-pub fn parse(opt: Args) -> anyhow::Result<()> {
-    match opt.cmd {
-        Command::Parse {
-            workers,
-            input_file,
-            output_dir,
-            max_file_size,
-        } => {
-            let is_multithreaded = matches!(workers, Some(v) if v > 0);
-            if let Some(v) = workers {
-                rayon::ThreadPoolBuilder::new()
-                    .thread_name(|i| format!("parser #{i}"))
-                    .num_threads(v)
-                    .build_global()
-                    .unwrap();
-            }
-            let (sender, receiver) = channel();
-            let writer_thread =
-                start_writer_thread(&output_dir, max_file_size * 1024 * 1024, receiver);
+pub fn parse(opt: Args) -> anyhow::Result<Stats> {
+    #[allow(irrefutable_let_patterns)]
+    let Command::Parse {
+        workers,
+        input_file,
+        output_dir,
+        max_file_size,
+    } = opt.cmd
+    else {
+        unreachable!()
+    };
 
-            let reader = BlobReader::from_path(input_file)?;
-            let stats = if let Some(filename) = &opt.planet_cache {
-                info!("Creating dense cache in {:?}", filename.display());
-                let cache = create_flat_cache(filename.clone())?;
-                run_with_cache(cache, sender, reader, is_multithreaded)
-            } else {
-                let cache = if let Some(filename) = &opt.small_cache {
-                    if filename.exists() {
-                        info!("Loading sparse cache from {:?}", filename.display());
-                        HashMapCache::from_bin(filename)?
-                    } else {
-                        HashMapCache::new()
-                    }
-                } else {
-                    HashMapCache::new()
-                };
-
-                let stats = run_with_cache(cache.clone(), sender, reader, is_multithreaded);
-
-                if let Some(filename) = &opt.small_cache {
-                    info!("Saving sparse cache to {:?}", filename.display());
-                    cache.save_as_bin(filename)?;
-                }
-
-                stats
-            };
-
-            writer_thread.join().unwrap();
-            info!("Run statistics:\n{stats:#?}");
-            Ok(())
-        }
+    let is_multithreaded = matches!(workers, Some(v) if v > 0);
+    if let Some(v) = workers {
+        rayon::ThreadPoolBuilder::new()
+            .thread_name(|i| format!("parser #{i}"))
+            .num_threads(v)
+            .build_global()
+            .unwrap();
     }
+    let (sender, receiver) = channel();
+    let writer_thread = start_writer_thread(&output_dir, max_file_size * 1024 * 1024, receiver);
+
+    let reader = BlobReader::from_path(input_file)?;
+    let stats = if let Some(filename) = &opt.planet_cache {
+        info!("Creating dense cache in {:?}", filename.display());
+        let cache = create_flat_cache(filename.clone())?;
+        run_with_cache(cache, sender, reader, is_multithreaded)
+    } else {
+        let cache = if let Some(filename) = &opt.small_cache {
+            if filename.exists() {
+                info!("Loading sparse cache from {:?}", filename.display());
+                HashMapCache::from_bin(filename)?
+            } else {
+                HashMapCache::new()
+            }
+        } else {
+            HashMapCache::new()
+        };
+
+        let stats = run_with_cache(cache.clone(), sender, reader, is_multithreaded);
+
+        if let Some(filename) = &opt.small_cache {
+            info!("Saving sparse cache to {:?}", filename.display());
+            cache.save_as_bin(filename)?;
+        }
+
+        stats
+    };
+
+    writer_thread.join().unwrap();
+    Ok(stats)
 }
 
 fn run_with_cache<R: Read + Send, C: CacheStore + Clone + Send>(

@@ -10,6 +10,7 @@ pub mod str_builder;
 pub mod utils;
 
 // group = ArgGroup::with_name("cache").required(true)
+// const PLANET_URL: &str = "https://planet.openstreetmap.org/replication/minute";
 
 #[derive(Parser, Debug)]
 #[command(about, version)]
@@ -38,7 +39,7 @@ pub enum Command {
         /// Approximate maximum uncompressed file size, in MB, per output file.
         #[arg(short, long, default_value = "100")]
         max_file_size: usize,
-        /// Number of worker threads to run. Defaults to number of logical CPUs.
+        /// Number of worker threads to run, or 0 to disables multithreading. Defaults to number of logical CPUs.
         #[arg(short, long)]
         workers: Option<usize>,
         /// OSM input PBF file
@@ -53,10 +54,7 @@ pub enum Command {
     //     #[arg(long)]
     //     seqid: Option<i64>,
     //     /// Source of the minute data.
-    //     #[arg(
-    //         long,
-    //         default_value = "https://planet.openstreetmap.org/replication/minute"
-    //     )]
+    //     #[arg(long, default_value = PLANET_URL)]
     //     updater_url: String,
     //     /// Maximum size in kB for changes to download at once
     //     #[arg(long, default_value = "10240")]

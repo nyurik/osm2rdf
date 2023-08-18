@@ -7,6 +7,12 @@ fn main() -> anyhow::Result<()> {
 
     let args = Args::parse();
     match args.cmd {
-        Command::Parse { .. } => parser::parse(args),
+        Command::Parse { .. } => {
+            let stats = parser::parse(args);
+            println!("Run statistics:\n{stats:#?}");
+        }
+        //
+        // Command::Update { .. } => todo!(),
     }
+    Ok(())
 }
