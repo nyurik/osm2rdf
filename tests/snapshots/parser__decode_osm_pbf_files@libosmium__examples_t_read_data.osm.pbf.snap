@@ -16,12 +16,12 @@ input_file: tests/fixtures/libosmium/examples_t_read_data.osm.pbf
             osmt:test:section "mp-geom";
             osmt:test:id "701";
             osmm:type "w";
+            osmm:isClosed "false"^^xsd:boolean;
+            osmm:loc "Point(1.039999975375831 7.109999995264225)"^^geo:wktLiteral;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
             osmm:changeset "1"^^xsd:integer.
-            osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(1.039999975375831 7.109999995264225)"^^geo:wktLiteral;
         "}#",
     },
     Create {
@@ -32,12 +32,12 @@ input_file: tests/fixtures/libosmium/examples_t_read_data.osm.pbf
             osmt:test:section "mp-geom";
             osmt:test:id "701";
             osmm:type "w";
+            osmm:isClosed "false"^^xsd:boolean;
+            osmm:loc "Point(1.009999970444478 7.139999916376546)"^^geo:wktLiteral;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
             osmm:changeset "1"^^xsd:integer.
-            osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(1.009999970444478 7.139999916376546)"^^geo:wktLiteral;
         "}#",
     },
     Create {
@@ -50,14 +50,14 @@ input_file: tests/fixtures/libosmium/examples_t_read_data.osm.pbf
             osmt:test:id "701";
             osmt:landuse "forest";
             osmm:type "r";
-            osmm:version "1"^^xsd:integer;
-            osmm:user "test";
-            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
-            osmm:changeset "1"^^xsd:integer.
             osmm:has osmway:701800;
             osmway:701800 "outer";
             osmm:has osmway:701801;
             osmway:701801 "outer";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
         "}#",
     },
 ]

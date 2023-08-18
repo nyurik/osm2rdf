@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use chrono::{DateTime, TimeZone, Utc};
+use osmpbf::{DenseNodeInfo, Info};
 use percent_encoding::{AsciiSet, CONTROLS};
 
 use crate::str_builder::StringBuf;
@@ -78,6 +79,38 @@ impl Display for Element {
             Element::Node => write!(f, "osmnode"),
             Element::Way => write!(f, "osmway"),
             Element::Relation => write!(f, "osmrel"),
+        }
+    }
+}
+
+pub struct ElementInfo<'a> {
+    pub is_deleted: bool,
+    pub version: i32,
+    pub user: Option<&'a str>,
+    pub milli_timestamp: i64,
+    pub changeset: i64,
+}
+
+impl<'a> From<Info<'a>> for ElementInfo<'a> {
+    fn from(info: Info<'a>) -> Self {
+        Self {
+            is_deleted: info.deleted(),
+            version: info.version().unwrap(),
+            user: info.user().map(|v| v.unwrap()),
+            milli_timestamp: info.milli_timestamp().unwrap(),
+            changeset: info.changeset().unwrap(),
+        }
+    }
+}
+
+impl<'a> From<&DenseNodeInfo<'a>> for ElementInfo<'a> {
+    fn from(info: &DenseNodeInfo<'a>) -> Self {
+        Self {
+            is_deleted: info.deleted(),
+            version: info.version(),
+            user: info.user().ok(),
+            milli_timestamp: info.milli_timestamp(),
+            changeset: info.changeset(),
         }
     }
 }

@@ -1,0 +1,29 @@
+---
+source: tests/parser.rs
+expression: result
+input_file: tests/fixtures/libosmium/examples_t_amenity_list_area.osm.pbf
+---
+[
+    Skip,
+    Skip,
+    Skip,
+    Skip,
+    Create {
+        elem: Way,
+        id: 274425514,
+        ts: 1471461400000,
+        val: indoc! {r#"
+            osmt:amenity "restaurant";
+            osmt:building "house";
+            osmt:cuisine "american";
+            osmt:name "Seamen's Club";
+            osmm:type "w";
+            osmm:isClosed "true"^^xsd:boolean;
+            osmm:loc "Point(53.560254379902155 8.583793299544507)"^^geo:wktLiteral;
+            osmm:version "4"^^xsd:integer;
+            osmm:user "Lutalica_1974";
+            osmm:timestamp "2016-08-17 19:16:40 UTC"^^xsd:dateTime;
+            osmm:changeset "41519398"^^xsd:integer.
+        "}#",
+    },
+]

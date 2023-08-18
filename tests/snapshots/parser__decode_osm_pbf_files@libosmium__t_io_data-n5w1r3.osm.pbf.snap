@@ -1,39 +1,23 @@
 ---
 source: tests/parser.rs
 expression: result
-input_file: tests/fixtures/libosmium/examples_t_area_test_data.osm.pbf
+input_file: tests/fixtures/libosmium/t_io_data-n5w1r3.osm.pbf
 ---
 [
     Skip,
     Skip,
     Skip,
     Skip,
+    Skip,
     Create {
         elem: Way,
-        id: 701800,
+        id: 20,
         ts: 1388534400000,
         val: indoc! {r#"
-            osmt:test:section "mp-geom";
-            osmt:test:id "701";
+            osmt:highway "primary";
             osmm:type "w";
             osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(1.039999975375831 7.109999995264225)"^^geo:wktLiteral;
-            osmm:version "1"^^xsd:integer;
-            osmm:user "test";
-            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
-            osmm:changeset "1"^^xsd:integer.
-        "}#",
-    },
-    Create {
-        elem: Way,
-        id: 701801,
-        ts: 1388534400000,
-        val: indoc! {r#"
-            osmt:test:section "mp-geom";
-            osmt:test:id "701";
-            osmm:type "w";
-            osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(1.009999970444478 7.139999916376546)"^^geo:wktLiteral;
+            osmm:loc "Point(0.9999999827705324 1.0999999852385371)"^^geo:wktLiteral;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
@@ -42,18 +26,13 @@ input_file: tests/fixtures/libosmium/examples_t_area_test_data.osm.pbf
     },
     Create {
         elem: Relation,
-        id: 701900,
+        id: 30,
         ts: 1388534400000,
         val: indoc! {r#"
-            osmt:type "multipolygon";
-            osmt:test:section "mp-geom";
-            osmt:test:id "701";
-            osmt:landuse "forest";
+            osmt:type "test";
             osmm:type "r";
-            osmm:has osmway:701800;
-            osmway:701800 "outer";
-            osmm:has osmway:701801;
-            osmway:701801 "outer";
+            osmm:has osmnode:10;
+            osmnode:10 "none";
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
@@ -62,14 +41,32 @@ input_file: tests/fixtures/libosmium/examples_t_area_test_data.osm.pbf
     },
     Create {
         elem: Relation,
-        id: 701901,
+        id: 31,
         ts: 1388534400000,
         val: indoc! {r#"
-            osmt:type "multipolygon";
-            osmt:landuse "forest";
+            osmt:type "restriction";
             osmm:type "r";
-            osmm:has osmway:701802;
-            osmway:701802 "outer";
+            osmm:has osmway:20;
+            osmway:20 "from";
+            osmm:has osmnode:11;
+            osmnode:11 "via";
+            osmm:has osmway:22;
+            osmway:22 "to";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+        "}#",
+    },
+    Create {
+        elem: Relation,
+        id: 32,
+        ts: 1388534400000,
+        val: indoc! {r#"
+            osmt:test "relinrel";
+            osmm:type "r";
+            osmm:has osmrel:30;
+            osmrel:30 "none";
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
             osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;

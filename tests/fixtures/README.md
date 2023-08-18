@@ -1,10 +1,11 @@
 Most of these files were copied from [libosmium](https://github.com/osmcode/libosmium/tree/master/test) project's test
-director, and encoded as `.osm.pbf` using `copy.py` script that runs osmium internally.
-Make sure osmium-tools are installed.
+director using `copy.py` script that renames them and puts them in the `libomium` dir.
+
+A `just gen-pbf` command will then run osmium tool to generate a pbf file from the osm file in all dirs.
 
 ```shell
 python3 copy.py "...libosmium...dir...path..."
-# internally runs    osmium cat -f pbf -o "file.osm.pbf" "file.osm"
+just gen-pbf
 ```
 
 ## LICENSE

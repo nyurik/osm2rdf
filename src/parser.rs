@@ -10,30 +10,14 @@ use bytesize::ByteSize;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use geos::{CoordSeq, Geom, Geometry};
-use lazy_static::lazy_static;
 use osmnodecache::{Cache, CacheStore, DenseFileCache, DenseFileCacheOpts, HashMapCache};
-use osmpbf::{BlobDecode, BlobReader, DenseNode, Info, Node, PrimitiveBlock, Relation, Way};
+use osmpbf::{BlobDecode, BlobReader, DenseNode, Node, PrimitiveBlock, Relation, Way};
 use path_absolutize::Absolutize;
-use percent_encoding::utf8_percent_encode;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use regex::Regex;
 
-use crate::str_builder::{
-    StringBuf, XsdBoolean, XsdElement, XsdIter, XsdPoint, XsdRaw, XsdRelMember, XsdStr,
-    XsdWikipedia,
-};
-use crate::utils::{to_utc, Element, Statement, Stats, PERCENT_ENC_SET};
+use crate::str_builder::{StringBuf, XsdBoolean, XsdElement, XsdPoint, XsdRelMember, XsdStr};
+use crate::utils::{to_utc, Element, ElementInfo, Statement, Stats};
 use crate::{Args, Command};
-
-lazy_static! {
-    /// Total length of the maximum "valid" local name is 60 (58 + first + last char)
-    /// Local name may contain letters, numbers anywhere, and -:_ symbols anywhere except first and last position
-    pub static ref RE_SIMPLE_LOCAL_NAME: Regex = Regex::new(r"^[0-9a-zA-Z_]([-:0-9a-zA-Z_]{0,58}[0-9a-zA-Z_])?$").unwrap();
-    pub static ref RE_WIKIDATA_KEY: Regex = Regex::new(r"(.:)?wikidata$").unwrap();
-    pub static ref RE_WIKIDATA_VALUE: Regex = Regex::new(r"^Q[1-9][0-9]{0,18}$").unwrap();
-    pub static ref RE_WIKIDATA_MULTI_VALUE: Regex = Regex::new(r"^Q[1-9][0-9]{0,18}(\s*;\s*Q[1-9][0-9]{0,18})+$").unwrap();
-    pub static ref RE_WIKIPEDIA_VALUE: Regex = Regex::new(r"^([-a-z]+):(.+)$").unwrap();
-}
 
 pub struct Parser<'a> {
     parent_stats: &'a Mutex<Stats>,
@@ -58,57 +42,24 @@ impl<'a> Parser<'a> {
     }
 
     fn on_node(&mut self, node: &Node) -> Statement {
-        let info = node.info();
-        let mut statement = self.process_node(
-            info.deleted(),
-            node.id(),
-            node.tags(),
-            node.lat(),
-            node.lon(),
-        );
-        if let Statement::Create {
-            ref mut val,
-            ref mut ts,
-            ..
-        } = statement
-        {
-            *ts = Self::push_info(val, &info);
-        }
-        statement
+        let info = node.info().into();
+        self.process_node(info, node.id(), node.tags(), node.lat(), node.lon())
     }
 
     fn on_dense_node(&mut self, node: &DenseNode) -> Statement {
-        let info = node.info().unwrap();
-        let mut statement = self.process_node(
-            info.deleted(),
-            node.id(),
-            node.tags(),
-            node.lat(),
-            node.lon(),
-        );
-        if let Statement::Create {
-            val: ref mut value, ..
-        } = statement
-        {
-            value.push_metadata(
-                info.version(),
-                info.user().unwrap(),
-                info.milli_timestamp(),
-                info.changeset(),
-            );
-        }
-        statement
+        let info = node.info().unwrap().into();
+        self.process_node(info, node.id(), node.tags(), node.lat(), node.lon())
     }
 
     fn process_node<'t, TTags: Iterator<Item = (&'t str, &'t str)> + ExactSizeIterator>(
         &mut self,
-        is_deleted: bool,
+        info: ElementInfo<'_>,
         id: i64,
         tags: TTags,
         lat: f64,
         lon: f64,
     ) -> Statement {
-        if is_deleted {
+        if info.is_deleted {
             self.stats.deleted_nodes += 1;
             Statement::Delete {
                 elem: Element::Node,
@@ -117,27 +68,27 @@ impl<'a> Parser<'a> {
         } else {
             self.cache.set_lat_lon(id as usize, lat, lon);
             let mut value = StringBuf::new(100000);
-            self.push_all_tags(&mut value, tags);
+            value.add_tags(tags);
             if value.is_empty() {
                 self.stats.skipped_nodes += 1;
                 Statement::Skip
             } else {
-                value.push_value("osmm:loc", XsdPoint { lat, lon });
-                value.push_value("osmm:type", XsdElement(Element::Node));
+                value.add_value("osmm:loc", XsdPoint { lat, lon });
+                value.add_value("osmm:type", XsdElement(Element::Node));
                 self.stats.added_nodes += 1;
                 Statement::Create {
                     elem: Element::Node,
                     id,
-                    val: value,
-                    ts: 0,
+                    ts: info.milli_timestamp,
+                    val: value.finalize(info),
                 }
             }
         }
     }
 
     fn on_way(&mut self, way: &Way) -> Statement {
-        let info = way.info();
-        if info.deleted() {
+        let info: ElementInfo = way.info().into();
+        if info.is_deleted {
             self.stats.deleted_ways += 1;
             return Statement::Delete {
                 elem: Element::Way,
@@ -145,63 +96,54 @@ impl<'a> Parser<'a> {
             };
         }
         let mut value = StringBuf::new(100000);
-        self.push_all_tags(&mut value, way.tags());
-        value.push_value("osmm:type", XsdElement(Element::Way));
-        let ts = Self::push_info(&mut value, &info);
+        value.add_tags(way.tags());
+        value.add_value("osmm:type", XsdElement(Element::Way));
         if let Err(err) = self.parse_way_geometry(&mut value, way) {
-            value.push_value("osmm:loc:error", XsdStr(&err.to_string()));
+            value.add_value("osmm:loc:error", XsdStr(&err.to_string()));
         }
 
         self.stats.added_ways += 1;
         Statement::Create {
             elem: Element::Way,
             id: way.id(),
-            val: value,
-            ts,
+            ts: info.milli_timestamp,
+            val: value.finalize(info),
         }
     }
 
     fn on_relation(&mut self, rel: &Relation) -> Statement {
-        let info = rel.info();
-        if info.deleted() {
+        let info: ElementInfo = rel.info().into();
+        if info.is_deleted {
             self.stats.deleted_rels += 1;
             return Statement::Delete {
-                elem: Element::Way,
+                elem: Element::Relation,
                 id: rel.id(),
             };
         }
-        let mut value = StringBuf::new(100000);
-        self.push_all_tags(&mut value, rel.tags());
-        value.push_value("osmm:type", XsdElement(Element::Relation));
 
-        let ts = Self::push_info(&mut value, &info);
+        let mut value = StringBuf::new(100000);
+        value.add_tags(rel.tags());
+        value.add_value("osmm:type", XsdElement(Element::Relation));
+
         for mbr in rel.members() {
             // Produce two statements - one to find all members of a relation,
             // and another to find the role of that relation
             //     osmrel:123  osmm:has    osmway:456
-            //     osmrel:123  osmway:456  "inner"
-            value.push_value("osmm:has", XsdRelMember(&mbr));
-            value.push_value(XsdRelMember(&mbr), XsdStr(mbr.role().unwrap()));
+            //     osmrel:123  osmway:456  "inner"    (this is added only if non-empty)
+            value.add_value("osmm:has", XsdRelMember(&mbr));
+            let role = mbr.role().unwrap();
+            if !role.is_empty() {
+                value.add_value(XsdRelMember(&mbr), XsdStr(role));
+            }
         }
 
         self.stats.added_rels += 1;
         Statement::Create {
             elem: Element::Relation,
             id: rel.id(),
-            val: value,
-            ts,
+            ts: info.milli_timestamp,
+            val: value.finalize(info),
         }
-    }
-
-    fn push_info(value: &mut StringBuf, info: &Info) -> i64 {
-        let ts = info.milli_timestamp().unwrap();
-        value.push_metadata(
-            info.version().unwrap(),
-            info.user().unwrap().unwrap(),
-            ts,
-            info.changeset().unwrap(),
-        );
-        ts
     }
 
     fn parse_way_geometry(&self, value: &mut StringBuf, way: &Way) -> anyhow::Result<()> {
@@ -215,54 +157,13 @@ impl<'a> Parser<'a> {
 
         let geometry = Geometry::create_line_string(CoordSeq::new_from_vec(&refs)?)?;
         let value1 = geometry.is_closed()?;
-        value.push_value("osmm:isClosed", XsdBoolean(value1));
+        value.add_value("osmm:isClosed", XsdBoolean(value1));
         let g = geometry.point_on_surface()?;
         let lat = g.get_y().unwrap();
         let lon = g.get_x().unwrap();
-        value.push_value("osmm:loc", XsdPoint { lat, lon });
+        value.add_value("osmm:loc", XsdPoint { lat, lon });
 
         Ok(())
-    }
-
-    fn push_all_tags<'t, TTags: Iterator<Item = (&'t str, &'t str)> + ExactSizeIterator>(
-        &mut self,
-        value: &mut StringBuf,
-        tags: TTags,
-    ) {
-        for (key, val) in tags {
-            if key == "created_by" {
-                continue;
-            }
-            if !RE_SIMPLE_LOCAL_NAME.is_match(key) {
-                // Record any unusual tag name in a "osmm:badkey" statement
-                value.push_value("osmm:badkey", XsdStr(val));
-                continue;
-            }
-
-            let prop = XsdRaw("osmt", key);
-            if key.contains("wikidata") {
-                if RE_WIKIDATA_VALUE.is_match(val) {
-                    value.push_value(prop, XsdRaw("wd", val));
-                    continue;
-                } else if RE_WIKIDATA_MULTI_VALUE.is_match(val) {
-                    value.push_value(
-                        prop,
-                        XsdIter(|| val.split(';').map(|v| XsdRaw("wd", v.trim()))),
-                    );
-                    continue;
-                }
-            } else if key.contains("wikipedia") {
-                if let Some(v) = RE_WIKIPEDIA_VALUE.captures(val) {
-                    let lang = v.get(1).unwrap().as_str();
-                    let title = v.get(2).unwrap().as_str();
-                    let title = title.replace(' ', "_");
-                    let title = &utf8_percent_encode(&title, PERCENT_ENC_SET);
-                    value.push_value(prop, XsdWikipedia { lang, title });
-                    continue;
-                }
-            }
-            value.push_value(prop, XsdStr(val));
-        }
     }
 }
 

@@ -1,14 +1,31 @@
 ---
 source: tests/parser.rs
 expression: result
-input_file: tests/fixtures/libosmium/t_relations_data.osm.pbf
+input_file: tests/fixtures/osm2rdf/dense_test1.osm.pbf
 ---
 [
     Skip,
     Skip,
     Skip,
     Skip,
-    Skip,
+    Create {
+        elem: Node,
+        id: 14,
+        ts: 1388534400000,
+        val: indoc! {r#"
+            osmt:test "node";
+            osmt:wikidata wd:Q12345;
+            osmt:royal_cypher:wikidata wd:Q1,wd:Q2,wd:Q3456789;
+            osmt:wikipedia <https://en.wikipedia.org/wiki/Some_%28restaurant%29>;
+            osmm:badkey "my !@#$ '\\"bad&key";
+            osmm:loc "Point(1.4000000000000001 1)"^^geo:wktLiteral;
+            osmm:type "n";
+            osmm:version "1"^^xsd:integer;
+            osmm:user "test";
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
+            osmm:changeset "1"^^xsd:integer.
+        "}#",
+    },
     Create {
         elem: Way,
         id: 20,

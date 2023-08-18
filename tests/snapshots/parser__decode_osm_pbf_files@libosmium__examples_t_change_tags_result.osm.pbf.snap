@@ -1,35 +1,38 @@
 ---
 source: tests/parser.rs
 expression: result
-input_file: tests/fixtures/libosmium/examples_t_count_data.osm.pbf
+input_file: tests/fixtures/libosmium/examples_t_change_tags_result.osm.pbf
 ---
 [
     Skip,
     Skip,
+    Skip,
     Create {
         elem: Way,
-        id: 10,
-        ts: 946721472000,
+        id: 20,
+        ts: 1388534400000,
         val: indoc! {r#"
+            osmt:natural "wood";
+            osmt:name "Example Forest";
             osmm:type "w";
             osmm:isClosed "false"^^xsd:boolean;
-            osmm:loc "Point(51.02885679855424 13.724815842567391)"^^geo:wktLiteral;
+            osmm:loc "Point(1.039999975375831 7.109999995264225)"^^geo:wktLiteral;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
-            osmm:timestamp "2000-01-01 10:11:12 UTC"^^xsd:dateTime;
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
             osmm:changeset "1"^^xsd:integer.
         "}#",
     },
     Create {
         elem: Relation,
-        id: 20,
-        ts: 946721472000,
+        id: 30,
+        ts: 1388534400000,
         val: indoc! {r#"
+            osmt:note " relation without members";
             osmm:type "r";
-            osmm:has osmway:10;
             osmm:version "1"^^xsd:integer;
             osmm:user "test";
-            osmm:timestamp "2000-01-01 10:11:12 UTC"^^xsd:dateTime;
+            osmm:timestamp "2014-01-01 00:00:00 UTC"^^xsd:dateTime;
             osmm:changeset "1"^^xsd:integer.
         "}#",
     },

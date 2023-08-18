@@ -13,7 +13,7 @@ set -ex
 rustc --version
 cargo --version
 cargo fmt --all -- --check
-cargo clippy -- -D warnings
 cargo build
 cargo test --workspace --all-targets --bins --tests --lib --benches
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
+cargo clippy -- -D warnings

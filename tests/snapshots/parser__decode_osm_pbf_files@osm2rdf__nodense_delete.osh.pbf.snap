@@ -1,0 +1,19 @@
+---
+source: tests/parser.rs
+expression: result
+input_file: tests/fixtures/osm2rdf/nodense_delete.osh.pbf
+---
+[
+    Delete {
+        elem: Node,
+        id: 1,
+    },
+    Delete {
+        elem: Way,
+        id: 2,
+    },
+    Delete {
+        elem: Relation,
+        id: 3,
+    },
+]

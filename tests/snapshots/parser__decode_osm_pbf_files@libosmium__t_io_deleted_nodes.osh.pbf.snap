@@ -1,0 +1,12 @@
+---
+source: tests/parser.rs
+expression: result
+input_file: tests/fixtures/libosmium/t_io_deleted_nodes.osh.pbf
+---
+[
+    Delete {
+        elem: Node,
+        id: 1,
+    },
+    Skip,
+]
