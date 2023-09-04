@@ -17,7 +17,7 @@ jobs:
       - name: Install libgeos-dev
         run: sudo apt-get install -y libgeos-dev
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - run: source .cargo-husky/hooks/pre-push
       - name: Build release
         if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
