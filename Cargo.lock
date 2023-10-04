@@ -733,9 +733,9 @@ dependencies = [
 
 [[package]]
 name = "memmap2"
-version = "0.7.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f49388d20533534cd19360ad3d6a7dadc885944aa802ba3995040c5ec11288c6"
+checksum = "deaba38d7abf1d4cca21cc89e932e542ba2b9258664d2a9ef0e61512039c9375"
 dependencies = [
  "libc",
 ]
@@ -812,13 +812,13 @@ dependencies = [
 
 [[package]]
 name = "osmnodecache"
-version = "0.8.1"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dd4aeb2ee3b498c643635d887d4e5405d3749c25d08db6049dee8acd88b302d"
+checksum = "0574e68d57167ac35194dfe315082ba4208aec97ad84265e1708663abf06d8c8"
 dependencies = [
  "bincode",
  "dashmap",
- "memmap2 0.7.1",
+ "memmap2 0.9.0",
  "serde",
  "serde_json",
  "thiserror",
