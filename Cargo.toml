@@ -21,7 +21,7 @@ path = "src/bin/main.rs"
 
 [dependencies]
 anyhow = "1"
-bytesize = "1"
+bytesize = "2"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
 env_logger = "0.10"
