@@ -826,9 +826,9 @@ dependencies = [
 
 [[package]]
 name = "osmpbf"
-version = "0.3.1"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3bec2671f8eb1e9a353adfe8aafe44c9c5207e0012d469a4b61fb7bf33adf37"
+checksum = "bbae04d880907d7602c10347f027eaaee4e854435c229db01ec0088ddc0ed236"
 dependencies = [
  "byteorder",
  "flate2",
