@@ -27,7 +27,7 @@ jobs:
         run: |
           gzip -c -9 target/release/osm2rdf > osm2rdf.gz
       - name: Publish release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
         with:
           files: |
